@@ -1,0 +1,22 @@
+[project]
+name = "print_studio"
+authors = [{ name = "Neotec Integrated Solution", email = "support@neotec.ai" }]
+description = "Easy drag-and-drop print format designer for Frappe / ERPNext"
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    "qrcode>=7.4",
+    "python-barcode>=0.15",
+    "pillow>=9.0",
+    "openpyxl>=3.0",
+    "python-docx>=0.8",
+    "pymupdf>=1.23",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0"

@@ -1,0 +1,1037 @@
+<!--
+  Neotec Print Studio v2 — Easy Print Format Designer
+  Built for non-technical users: nothing is typed by hand.
+  - Drag friendly-named fields onto the page (no field-name knowledge needed)
+  - Visual formula builder: click fields + operators, see the live answer
+  - Smart Blocks: drop a whole Company Header / Items Table / Totals in one move
+  - WYSIWYG: the canvas shows real data, so what you see is what prints
+  Exports config_json consumed by the Frappe server renderer (integration kit).
+-->
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#eef0f3; --panel:#fff; --ink:#1f2733; --muted:#6b7480;
+    --line:#e4e7ec; --line2:#cdd2da; --accent:#2f6f8f; --accent2:#caa14a;
+    --accent-soft:#e7f0f4; --gold-soft:#f6efdd; --band:#fafbfc; --grid:#eef0f3;
+    --detail:#fff8ec; --header:#eef4f7; --footer:#f3f1ee; --ok:#3f7d56;
+    --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:var(--sans);color:var(--ink);background:var(--bg);font-size:13px}
+  button{font-family:inherit;font-size:12px;cursor:pointer}
+  .app{display:grid;grid-template-columns:228px 1fr 270px;grid-template-rows:48px 1fr;height:100vh}
+  .topbar{grid-column:1/4;display:flex;align-items:center;gap:8px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .brand{font-weight:700;color:var(--ink);line-height:1.05}
+  .brand b{color:var(--accent)} .brand small{display:block;font-weight:500;color:var(--muted);font-size:10px;letter-spacing:.4px}
+  .tdoc select{font-size:12px;padding:6px 9px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+  .spacer{flex:1}
+  .tbtn{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--line2);border-radius:8px;background:#fff;color:var(--ink)}
+  .tbtn:hover{background:var(--accent-soft);border-color:var(--accent)}
+  .tbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .toggle{display:flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+  .toggle button{border:0;background:#fff;padding:7px 10px;color:var(--muted)}
+  .toggle button.on{background:var(--accent);color:#fff}
+  .zoom{display:flex;align-items:center;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+  .zoom button{border:0;background:#fff;padding:7px 9px} .zoom button:hover{background:var(--accent-soft)}
+  .zoom span{min-width:42px;text-align:center;color:var(--muted);font-size:11px}
+
+  /* left */
+  .left{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+  .tabs{display:flex;border-bottom:1px solid var(--line)}
+  .tabs button{flex:1;border:0;background:#fff;padding:10px 0;color:var(--muted);font-weight:600;border-bottom:2px solid transparent}
+  .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+  .leftbody{overflow:auto;padding:10px;flex:1}
+  .gh{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:12px 4px 6px;display:flex;align-items:center;gap:6px}
+  .gh:first-child{margin-top:2px}
+
+  .pitem{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--ink);text-align:left;margin-bottom:2px}
+  .pitem:hover{background:var(--accent-soft);border-color:var(--line)}
+  .pitem .ico{width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:6px;background:#fff;color:var(--accent);flex:none}
+  .pitem .ico svg{width:14px;height:14px}
+  .pitem small{display:block;color:var(--muted);font-size:10px}
+
+  /* draggable field chips */
+  .fld{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);text-align:left;margin-bottom:5px;cursor:grab}
+  .fld:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .fld:active{cursor:grabbing}
+  .fld .ft{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;flex:none}
+  .fld .ft.txt{background:#6b7480}.fld .ft.num{background:var(--accent)}.fld .ft.date{background:#8a6fae}
+  .fld .nm{flex:1;line-height:1.15}
+  .fld .nm small{display:block;color:var(--muted);font-size:9px;font-family:var(--mono)}
+  .fld .drag{color:var(--line2)}
+  .srcsel{width:100%;margin-bottom:8px;padding:7px;border:1px solid var(--line2);border-radius:7px}
+  .tip{margin:4px 4px 0;padding:9px;border:1px dashed var(--line2);border-radius:8px;color:var(--muted);font-size:11px;line-height:1.5}
+  .tip b{color:var(--accent)}
+
+  .block{width:100%;text-align:left;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:8px;cursor:pointer}
+  .block:hover{border-color:var(--accent2);background:var(--gold-soft)}
+  .block .bt{font-weight:700;display:flex;align-items:center;gap:7px}
+  .block .bt .d{width:8px;height:8px;border-radius:50%;background:var(--accent2)}
+  .block small{display:block;color:var(--muted);margin-top:3px;font-size:11px;line-height:1.4}
+
+  /* stage */
+  .stage{overflow:auto;background:repeating-linear-gradient(45deg,#e7e9ec,#e7e9ec 10px,#e3e5e9 10px,#e3e5e9 20px);padding:26px;position:relative}
+  .page-wrap{margin:0 auto;transform-origin:top center}
+  .page{background:#fff;box-shadow:0 8px 28px rgba(20,30,50,.18);position:relative}
+  .ruler-note{position:sticky;top:0;color:#7d858f;font-size:11px;margin-bottom:8px;text-align:center}
+  .band{position:relative;border-bottom:1px dashed var(--line2);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:18.9px 18.9px}
+  .band.report_header,.band.report_footer{background-color:#fff}
+  .band.page_header{background-color:var(--header)} .band.page_footer{background-color:var(--footer)} .band.detail{background-color:var(--detail)}
+  .band.group_header,.band.group_footer{background-color:#f0f4ef}
+  .band.dropok{outline:2px dashed var(--accent);outline-offset:-3px;background-color:var(--accent-soft)}
+  .band-tag{position:absolute;left:0;top:0;font-size:9px;font-weight:700;letter-spacing:.5px;color:#9aa3ad;background:rgba(255,255,255,.72);padding:2px 6px;border-bottom-right-radius:6px;text-transform:uppercase;z-index:5;pointer-events:none}
+  .band-tag em{font-style:normal;color:var(--accent);font-weight:600}
+  .band-grip{position:absolute;left:0;right:0;bottom:-4px;height:8px;cursor:ns-resize;z-index:6}
+  .band.sel{outline:2px solid var(--accent);outline-offset:-2px}
+
+  .el{position:absolute;overflow:hidden;display:flex;align-items:center;cursor:move;font-size:11px;line-height:1.15;user-select:none}
+  .el .lbl{pointer-events:none;width:100%;padding:1px 3px;white-space:pre-wrap}
+  .el.sel{outline:1.5px solid var(--accent);z-index:20}
+  .el.t_field.showfields{background:rgba(47,111,143,.08)} .el.t_formula.showfields{background:rgba(202,161,74,.12)}
+  .el .rs{position:absolute;width:10px;height:10px;right:-1px;bottom:-1px;background:#fff;border:1.5px solid var(--accent);border-radius:2px;cursor:nwse-resize;display:none}
+  .el.sel .rs{display:block}
+  .el .qrbox,.el .bcbox{width:100%;height:100%;display:grid;place-items:center}
+  .el .qrbox svg,.el .bcbox svg{max-width:100%;max-height:100%}
+  .ph{width:100%;height:100%;display:grid;place-items:center;font-size:9px;color:#8a929c;background:repeating-linear-gradient(45deg,#f4f5f7,#f4f5f7 4px,#eceef1 4px,#eceef1 8px);border:1px solid var(--line2);text-align:center}
+
+  /* inspector */
+  .inspector{background:var(--panel);border-left:1px solid var(--line);overflow:auto}
+  .insp-h{padding:11px 13px;border-bottom:1px solid var(--line);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .insp-h .typetag{font-size:10px;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:20px}
+  .sec{border-bottom:1px solid var(--line)}
+  .sec>summary{list-style:none;cursor:pointer;padding:9px 13px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .sec>summary::-webkit-details-marker{display:none}
+  .sec>summary::before{content:"▸";color:var(--line2)} .sec[open]>summary::before{content:"▾"}
+  .sec .body{padding:4px 13px 13px}
+  .row{display:flex;gap:7px;margin:6px 0;align-items:center}
+  .row label{width:62px;flex:none;color:var(--muted);font-size:11px}
+  input,select,textarea{font-family:inherit;font-size:12px;width:100%;padding:6px 7px;border:1px solid var(--line2);border-radius:7px;background:#fff;color:var(--ink)}
+  textarea{resize:vertical;min-height:48px;font-family:var(--mono);font-size:11px}
+  input[type=color]{padding:2px;height:30px} input[type=checkbox]{width:auto}
+  .seg{display:flex;border:1px solid var(--line2);border-radius:7px;overflow:hidden}
+  .seg button{flex:1;border:0;background:#fff;padding:6px 0;color:var(--muted)} .seg button.on{background:var(--accent);color:#fff}
+  .mini{display:flex;gap:6px}.mini .row{flex:1;margin:0}
+  .bindcard{border:1px solid var(--line);border-radius:9px;padding:9px;background:#fafbfc}
+  .bindcard .cur{display:flex;align-items:center;gap:8px;font-weight:600}
+  .bindcard .cur .ft{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:10px;color:#fff;font-weight:700}
+  .bindcard .path{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px}
+  .editbind{width:100%;margin-top:8px;padding:7px;border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:7px}
+  .editbind:hover{background:var(--accent-soft)}
+  .empty{padding:30px 16px;color:var(--muted);text-align:center;font-size:12px;line-height:1.6}
+  .delbtn{width:100%;margin-top:10px;padding:8px;border:1px solid #e7b4b4;background:#fdf0f0;color:#9a3434;border-radius:8px}
+  .fieldnote{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4}
+  .formbtn{width:100%;padding:8px;border:1px solid var(--accent2);background:var(--gold-soft);color:#7a5d18;border-radius:8px;font-weight:600}
+
+  /* context menu */
+  .ctx{position:fixed;z-index:200;background:#fff;border:1px solid var(--line2);border-radius:10px;box-shadow:0 12px 34px rgba(20,30,50,.2);padding:5px;min-width:178px;display:none}
+  .ctx button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;padding:8px 9px;border-radius:7px;color:var(--ink);text-align:left}
+  .ctx button:hover{background:var(--accent-soft)} .ctx .sepm{height:1px;background:var(--line);margin:4px 6px}
+  .ctx .k{width:15px;color:var(--accent);display:grid;place-items:center}
+
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(15,22,32,.5);display:none;align-items:center;justify-content:center;z-index:300}
+  .modal .box{background:#fff;border-radius:14px;width:min(760px,94vw);max-height:88vh;overflow:hidden;display:flex;flex-direction:column}
+  .modal .mh{padding:14px 17px;border-bottom:1px solid var(--line);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .modal .mb{padding:15px 17px;overflow:auto}
+  .modal .mf{padding:13px 17px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+  .x{border:0;background:transparent;font-size:20px;color:var(--muted);cursor:pointer;line-height:1}
+
+  /* formula builder */
+  .fb{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .fb .picklist{border:1px solid var(--line);border-radius:9px;max-height:240px;overflow:auto;padding:6px}
+  .fb .picklist .gh{margin:8px 4px 4px}
+  .fb .pk{display:block;width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;color:var(--ink)}
+  .fb .pk:hover{background:var(--accent-soft)} .fb .pk small{color:var(--muted);font-family:var(--mono);font-size:9px}
+  .fb .ops{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .fb .ops button{border:1px solid var(--line2);background:#fff;border-radius:7px;padding:7px 12px;font-weight:700;min-width:38px}
+  .fb .ops button:hover{background:var(--accent-soft);border-color:var(--accent)}
+  .fb .expr{width:100%;min-height:72px;border:1px solid var(--line2);border-radius:8px;padding:9px;font-family:var(--mono);font-size:12px;background:#fcfcfd}
+  .fb .result{margin-top:12px;padding:12px 14px;border-radius:10px;background:linear-gradient(180deg,#f1f8f3,#e7f3eb);border:1px solid #cfe7d8}
+  .fb .result .rl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--ok)}
+  .fb .result .rv{font-size:24px;font-weight:800;color:#23553a;margin-top:2px}
+  .fb .result.err{background:#fdf1f1;border-color:#eecccc}.fb .result.err .rv,.fb .result.err .rl{color:#9a3434}
+  .fb .meta{display:flex;gap:10px;align-items:center;margin-top:12px}
+
+  /* preview */
+  .preview .band{background-image:none;border-bottom:0}
+  .preview .band-tag,.preview .band-grip,.preview .rs{display:none}
+  .preview .el{outline:0;cursor:default;background:transparent}
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">Neotec <b>Print Studio</b><small>EASY FORMAT DESIGNER · build 0.5.6</small></div>
+    <div class="tdoc"><select id="doctypeSel"></select></div>
+    <div class="spacer"></div>
+    <div class="toggle" title="What the boxes show on the page">
+      <button id="showData" class="on">Show data</button><button id="showFields">Show fields</button>
+    </div>
+    <div class="zoom"><button id="zoomOut">−</button><span id="zoomLbl">100%</span><button id="zoomIn">+</button></div>
+    <button class="tbtn" id="previewBtn">▷ Preview</button>
+    <button class="tbtn" id="tidyBtn" title="Clean up an imported layout">✨ Tidy</button>
+    <button class="tbtn" id="pageSetupBtn" title="Header, page numbers, combine formats">⚙ Page setup</button>
+    <button class="tbtn" id="importFileBtn" title="Read a PDF / Excel / Word / image into a layout">⇩ Import format</button>
+    <input type="file" id="psFile" accept=".pdf,.xlsx,.xlsm,.docx,.png,.jpg,.jpeg,.webp,.bmp" style="display:none">
+    <button class="tbtn" id="serverPrevBtn" title="Render with real data on the server">PDF preview</button>
+    <button class="tbtn" id="importBtn">Open</button>
+    <button class="tbtn primary" id="exportBtn">Save</button>
+  </div>
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="tabs">
+      <button data-tab="fields" class="on">Fields</button>
+      <button data-tab="blocks">Blocks</button>
+      <button data-tab="elements">Add</button>
+      <button data-tab="layers">Layers</button>
+    </div>
+    <div class="leftbody" id="leftbody"></div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="stage" id="stage">
+    <div class="page-wrap" id="pageWrap">
+      <div class="ruler-note" id="rulerNote"></div>
+      <div class="page" id="page"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="inspector" id="inspector"></div>
+</div>
+
+<div class="ctx" id="ctx"></div>
+<div class="modal" id="modal"><div class="box">
+  <div class="mh"><span id="modalTitle"></span><button class="x" id="modalClose">×</button></div>
+  <div class="mb" id="modalBody"></div>
+  <div class="mf" id="modalFoot"></div>
+</div></div>
+
+<script src="/assets/print_studio/js/qrcode.min.js"></script>
+<script src="/assets/print_studio/js/JsBarcode.all.min.js"></script>
+<script>
+/* ===== FIELD MODEL with friendly labels ===== */
+const T={txt:"txt",num:"num",date:"date"};
+const OVR={gstin:"GSTIN",hsn_code:"HSN Code",po_no:"PO Number",in_words:"Amount in Words",
+  qr_code:"QR / IRN Data",igst_rate:"IGST Rate",igst_amount:"IGST Amount",cgst_rate:"CGST Rate",
+  cgst_amount:"CGST Amount",sgst_rate:"SGST Rate",sgst_amount:"SGST Amount",uom:"Unit (UOM)",
+  idx:"Row No.",lr_no:"LR Number",ewaybill:"E-Way Bill",net_total:"Net Total",
+  total_taxes_and_charges:"Total Tax",grand_total:"Grand Total"};
+function lbl(f){ if(OVR[f]) return OVR[f]; return f.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+function ftype(f){ if(/(date)/.test(f))return T.date; if(/(qty|rate|amount|total|value|idx|pincode|_rate)/.test(f))return T.num; return T.txt; }
+
+let DOCTYPES={
+ "Sales Invoice":{sources:{
+   doc:{label:"Invoice",fields:["name","posting_date","due_date","po_no","grand_total","total_taxes_and_charges","net_total","in_words","status","remarks","qr_code"]},
+   company:{label:"My Company",fields:["company_name","gstin","address_line1","address_line2","phone","email"]},
+   customer:{label:"Customer",fields:["customer_name","gstin","billing_address","shipping_address","place_of_supply","contact_person","contact_mobile"]},
+   items:{label:"Items",table:1,fields:["idx","item_code","item_name","hsn_code","qty","uom","rate","amount","discount_amount","igst_rate","igst_amount","net_amount"]},
+   taxes:{label:"Tax Summary",table:1,fields:["hsn_code","taxable_value","igst_rate","igst_amount","total_tax","total"]}
+ }},
+ "Delivery Note":{sources:{
+   doc:{label:"Challan",fields:["name","posting_date","transporter","vehicle_no","lr_no","grand_total","in_words"]},
+   company:{label:"My Company",fields:["company_name","gstin","address_line1","phone"]},
+   customer:{label:"Customer",fields:["customer_name","gstin","shipping_address","place_of_supply","contact_mobile"]},
+   items:{label:"Items",table:1,fields:["idx","item_code","item_name","hsn_code","qty","uom","rate","amount","igst_rate","igst_amount"]}
+ }}
+};
+let SAMPLE={
+ "Sales Invoice":{
+  doc:{name:"27TGHO-IN/27102888",posting_date:"08-Jun-2026",due_date:"08-Jun-2026",po_no:"27102914",grand_total:"1,058.00",total_taxes_and_charges:"161.45",net_total:"896.95",in_words:"One Thousand Fifty-Eight only",status:"Unpaid",remarks:"Transport palnadu",qr_code:"INV|27TGHO-IN/27102888|1058.00|36AANFM6619G1ZZ"},
+  company:{company_name:"In-Effects Marketing (T.G)",gstin:"36AANFM6619G1ZZ",address_line1:"PLOT NO. 98/P, SURVEY NO. 48, TSIIC, KATTEDAN",address_line2:"RAJENDER NAGAR, HYDERABAD, TELANGANA 500077",phone:"4035417053",email:"info@ineffectsmarketing.com"},
+  customer:{customer_name:"SRI LAKSHMI STEEL TRADERS",gstin:"112233445566778",billing_address:"10/33, MAIN ROAD, PIDUGURALLA, GUNTUR, AP - 522413",shipping_address:"10/33, MAIN ROAD, PIDUGURALLA, GUNTUR, AP - 522413",place_of_supply:"Andhra Pradesh / 37",contact_person:"RAMARAO MOGULLURI",contact_mobile:"8555905642"},
+  items:[
+   {idx:1,item_code:"DN-14-12MP",item_name:"DN COMBINATION RING & OPENED END SPANNER SET 14-12 MD",hsn_code:"82041110",qty:"2.00",uom:"NOS",rate:"800.00",amount:"1,600.00",discount_amount:"720.00",igst_rate:"18.00",igst_amount:"158.40",net_amount:"1,038.40"},
+   {idx:2,item_code:"PKG-FWD",item_name:"Packing and Forwarding Expenses",hsn_code:"996713",qty:"1.00",uom:"NOS",rate:"16.95",amount:"16.95",discount_amount:"0.00",igst_rate:"18.00",igst_amount:"3.05",net_amount:"20.00"}
+  ],
+  taxes:[{hsn_code:"82041110",taxable_value:"880.00",igst_rate:"18.00",igst_amount:"158.40",total_tax:"158.40",total:"1,038.40"},
+         {hsn_code:"996713",taxable_value:"16.95",igst_rate:"18.00",igst_amount:"3.05",total_tax:"3.05",total:"20.00"}]
+ },
+ "Delivery Note":{
+  doc:{name:"FY25_26/27102798",posting_date:"02-Jun-2026",transporter:"Sindu Transport",vehicle_no:"",lr_no:"",grand_total:"18,180.00",in_words:"Eighteen Thousand One Hundred Eighty only"},
+  company:{company_name:"In-Effects Marketing (T.G)",gstin:"36AANFM6619G1ZZ",address_line1:"PLOT NO. 98/P, KATTEDAN, HYDERABAD",phone:"4035417053"},
+  customer:{customer_name:"CASH PARTY (IPT) SYED ALLAHBAKSH",gstin:"",shipping_address:"PRAKASHAM - FOR ONGOLE, Andhra Pradesh",place_of_supply:"Andhra Pradesh / 37",contact_mobile:"9281124992"},
+  items:[{idx:1,item_code:"IPT-26327",item_name:"M/C IDPW80 (YHWP30) 80M PETROL WATER PUMP",hsn_code:"84242000",qty:"2.00",uom:"NOS",rate:"9077.63",amount:"18,155.26",igst_rate:"18.00",igst_amount:"2,769.45"}]
+ }
+};
+
+/* element catalog */
+const EL={
+ text:{name:"Heading / Text",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14M12 6v12"/></svg>',def:{w:42,h:7,props:{text:"Text",fontSize:9,bold:false,italic:false,align:"left",color:"#1f2733",bg:"",border:"none"}}},
+ field:{name:"Field value",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 12h8"/></svg>',def:{w:50,h:7,props:{source:"doc",field:"customer_name",fontSize:9,bold:false,align:"left",color:"#1f2733",bg:"",prefix:"",suffix:"",decimals:"",border:"none"}}},
+ formula:{name:"Calculation",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5h9l-4 14M7 12h6"/></svg>',def:{w:50,h:7,props:{formula:"{doc.net_total} + {doc.total_taxes_and_charges}",dtype:"number",fontSize:9,bold:true,align:"right",color:"#1f2733",bg:"",decimals:"2",border:"none"}}},
+ image:{name:"Logo / Image",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="m4 17 5-5 4 4 3-2 4 4"/></svg>',def:{w:30,h:18,props:{src:"",fit:"contain"}}},
+ qr:{name:"QR Code",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 21v-7"/></svg>',def:{w:22,h:22,props:{source:"doc",field:"qr_code",ecc:"M"}}},
+ barcode:{name:"Barcode",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5v14M7 5v14M10 5v14M13 5v14M17 5v14M20 5v14"/></svg>',def:{w:55,h:16,props:{source:"doc",field:"name",format:"CODE128",showValue:true}}},
+ table:{name:"Items table",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16"/></svg>',def:{w:194,h:24,props:{source:"items",columns:[{field:"idx",label:"#",w:7,align:"center"},{field:"item_name",label:"Description",w:46,align:"left"},{field:"hsn_code",label:"HSN",w:13,align:"center"},{field:"qty",label:"Qty",w:10,align:"right"},{field:"rate",label:"Rate",w:12,align:"right"},{field:"igst_amount",label:"IGST",w:12,align:"right"}],fontSize:8,headerBg:"#eef4f7"}}},
+ rect:{name:"Box / Frame",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>',def:{w:40,h:20,props:{border:"all",borderColor:"#333",borderW:0.3,bg:""}}},
+ hline:{name:"Line —",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/></svg>',def:{w:60,h:0.4,props:{color:"#000",thick:0.4}}},
+ vline:{name:"Line |",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/></svg>',def:{w:0.4,h:24,props:{color:"#000",thick:0.4}}},
+ html:{name:"HTML / Jinja",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6 3 12l5 6M16 6l5 6-5 6M13 4l-2 16"/></svg>',def:{w:80,h:14,props:{html:"<b>{{ doc.name }}</b><br>Custom HTML / Jinja here",fontSize:9,color:"#1f2733",align:"left",fontFamily:"",printIf:""}}}
+};
+const BAND_TYPES=[{t:"report_header",label:"Page Top"},{t:"page_header",label:"Repeat Top"},{t:"group_header",label:"Group Top"},{t:"detail",label:"Items (repeats)"},{t:"group_footer",label:"Group Bottom"},{t:"page_footer",label:"Repeat Bottom"},{t:"report_footer",label:"Page Bottom"}];
+const SHOW_ON={report_header:"first_page",page_header:"every_page",page_footer:"every_page",report_footer:"last_page",detail:"per_row"};
+
+
+/* ===== ERPNext bridge (postMessage to the Desk page) ===== */
+const EMBEDDED = window.parent && window.parent!==window;
+const SAMPLE_META = JSON.parse(JSON.stringify(DOCTYPES));   // offline fallback (seeded above)
+const SAMPLE_DATA = JSON.parse(JSON.stringify(SAMPLE));
+const KNOWN = Object.keys(SAMPLE_META);                     // doctypes with a hand-tuned starter
+const _pending={}; let _rid=0;
+function bridge(type,args){
+  if(!EMBEDDED) return Promise.resolve(null);
+  return new Promise(res=>{ const id=++_rid; _pending[id]=res; window.parent.postMessage({ns:'ps',type,reqId:id,args:args||{}},'*'); });
+}
+window.addEventListener('message',e=>{ const m=e.data; if(!m||m.ns!=='ps'||m.type!=='reply')return; const r=_pending[m.reqId]; if(r){r(m.data);delete _pending[m.reqId];} });
+
+async function ensureDoctype(dt){
+  if(DOCTYPES[dt] && SAMPLE[dt]) return;
+  if(EMBEDDED){
+    const fields=await bridge('getFields',{doctype:dt});
+    const prev=await bridge('getPreview',{doctype:dt});
+    if(fields && Object.keys(fields).length) DOCTYPES[dt]={sources:fields};
+    SAMPLE[dt]=prev||{};
+  }
+  if(!DOCTYPES[dt]) DOCTYPES[dt]=SAMPLE_META[dt]||{sources:{doc:{label:dt,fields:[{name:'name',label:dt+' ID',type:'txt'}]}}};
+  if(!SAMPLE[dt]) SAMPLE[dt]=SAMPLE_DATA[dt]||{};
+}
+function genericSchema(dt){
+  const src=DOCTYPES[dt].sources, tbl=Object.keys(src).find(k=>src[k].table);
+  const bands=[];
+  const hdr={id:nid("b"),type:"report_header",height:38,showOn:"first_page",elements:[
+    asg(mkEl("text",62,3),{w:86,h:8,props:{text:dt.toUpperCase(),fontSize:15,bold:true,align:"center",color:"#1f2733",bg:"",border:"none"}}),
+    asg(mkEl("qr",178,2),{w:22,h:22,props:{source:"doc",field:"name",ecc:"M"}})
+  ]};
+  (src.doc.fields.filter(f=>f.name!=="name").slice(0,3)).forEach((f,i)=>
+    hdr.elements.push(asg(mkEl("field",8,3+i*7),{w:90,props:{source:"doc",field:f.name,fontSize:9,bold:i===0,align:"left",color:"#1f2733",bg:"",border:"none"}})));
+  bands.push(hdr);
+  if(tbl){
+    const cols=src[tbl].fields.filter(f=>f.name!=="idx").slice(0,6).map((f,i)=>({field:f.name,label:f.label,w:i===0?40:12,align:f.type==="num"?"right":"left"}));
+    cols.unshift({field:"idx",label:"#",w:7,align:"center"});
+    const te=mkEl("table",8,1); te.props.source=tbl; te.props.columns=cols;
+    bands.push({id:nid("b"),type:"detail",height:22,showOn:"per_row",dataSource:tbl,elements:[te]});
+  }
+  const gt=src.doc.fields.find(f=>/grand_total$|^total$|_total$/.test(f.name));
+  const ftr={id:nid("b"),type:"report_footer",height:22,showOn:"last_page",elements:[]};
+  if(gt){
+    ftr.elements.push(asg(mkEl("text",116,2),{w:44,h:6,props:{text:gt.label,fontSize:11,bold:true,align:"right",color:"#1f2733",bg:"",border:"none"}}));
+    ftr.elements.push(asg(mkEl("field",162,2),{w:38,h:6,props:{source:"doc",field:gt.name,fontSize:11,bold:true,align:"right",decimals:"2",color:"#1f2733",bg:"",border:"none"}}));
+  }
+  bands.push(ftr);
+  return {doctype:dt,page:{size:"A4",orientation:"portrait",marginTop:6,marginBottom:6,marginLeft:6,marginRight:6},bands};
+}
+let currentLayoutName=null;
+async function selectDoctype(dt){
+  await ensureDoctype(dt);
+  currentLayoutName=null;
+  schema = (!EMBEDDED && KNOWN.includes(dt)) ? blankSchema(dt) : genericSchema(dt);
+  sel=null; uid=3000; doctypeSel.value=dt; render(); buildInspector(); buildLeft();
+}
+
+/* ===== state ===== */
+const PXMM=3.7795275591;
+function curPage(){ const o=(schema&&schema.page&&schema.page.orientation)||'portrait'; return o==='landscape'?{w:297,h:210}:{w:210,h:297}; }
+let zoom=1, snap=true, preview=false, showFields=false;
+let uid=1; const nid=p=>p+(uid++);
+let schema=blankSchema("Sales Invoice"); let sel=null; let leftTab="fields";
+
+function blankSchema(dt){return{doctype:dt,page:{size:"A4",orientation:"portrait",marginTop:6,marginBottom:6,marginLeft:6,marginRight:6},
+ bands:[
+  {id:nid("b"),type:"report_header",height:50,showOn:"first_page",elements:starterHeader()},
+  {id:nid("b"),type:"detail",height:22,showOn:"per_row",dataSource:"items",elements:[mkEl("table",8,1)]},
+  {id:nid("b"),type:"report_footer",height:30,showOn:"last_page",elements:starterFooter()}
+ ]};}
+function starterHeader(){return[
+ asg(mkEl("text",80,3),{w:48,h:8,props:{text:"TAX INVOICE",fontSize:16,bold:true,align:"center",color:"#1f2733",bg:"",border:"none"}}),
+ asg(mkEl("field",8,3),{w:74,props:{source:"company",field:"company_name",fontSize:12,bold:true,align:"left",color:"#1f2733",bg:"",border:"none"}}),
+ asg(mkEl("field",8,12),{w:92,h:9,props:{source:"company",field:"address_line1",fontSize:8,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+ asg(mkEl("qr",178,2),{w:22,h:22,props:{source:"doc",field:"qr_code",ecc:"M"}}),
+ asg(mkEl("text",8,27),{w:18,h:6,props:{text:"Bill To:",fontSize:9,bold:true,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+ asg(mkEl("field",26,27),{w:70,props:{source:"customer",field:"customer_name",fontSize:10,bold:true,align:"left",color:"#1f2733",bg:"",border:"none"}}),
+ asg(mkEl("field",8,34),{w:92,h:9,props:{source:"customer",field:"billing_address",fontSize:8,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+ asg(mkEl("barcode",128,30),{w:64,h:13,props:{source:"doc",field:"name",format:"CODE128",showValue:true}})
+];}
+function starterFooter(){return[
+ asg(mkEl("text",118,2),{w:42,h:6,props:{text:"Invoice Total",fontSize:11,bold:true,align:"right",color:"#1f2733",bg:"",border:"none"}}),
+ asg(mkEl("field",162,2),{w:38,h:6,props:{source:"doc",field:"grand_total",fontSize:12,bold:true,align:"right",prefix:"INR ",color:"#1f2733",bg:"",border:"none"}}),
+ asg(mkEl("field",8,12),{w:130,h:6,props:{source:"doc",field:"in_words",fontSize:8,italic:true,align:"left",prefix:"Amount in words: ",color:"#4b5560",bg:"",border:"none"}})
+];}
+function asg(a,b){return Object.assign(a,b);}
+function mkEl(type,x,y){const d=EL[type].def;return{id:nid("e"),type,x,y,w:d.w,h:d.h,props:JSON.parse(JSON.stringify(d.props))};}
+
+/* ===== render ===== */
+const page=document.getElementById('page'),pageWrap=document.getElementById('pageWrap'),rulerNote=document.getElementById('rulerNote');
+function mm(v){return v*PXMM*zoom;}
+const FONTS=[["","Default"],["Helvetica, Arial, sans-serif","Helvetica / Arial"],["'Times New Roman', Times, serif","Times New Roman"],["Georgia, serif","Georgia"],["'Courier New', monospace","Courier New"],["Verdana, sans-serif","Verdana"],["Tahoma, sans-serif","Tahoma"],["Calibri, sans-serif","Calibri"]];
+function render(){
+ const _pg=curPage(); rulerNote.textContent=`A4 · ${_pg.w}×${_pg.h} mm · ${((schema.page&&schema.page.orientation)||'portrait')} · ${schema.doctype}`+(preview?" · PREVIEW":"");
+ pageWrap.className="page-wrap"+(preview?" preview":"");
+ page.style.width=mm(curPage().w)+"px"; page.innerHTML="";
+ if(preview){renderPreview();return;}
+ schema.bands.forEach(band=>{
+  const bEl=document.createElement('div');
+  bEl.className="band "+band.type+(sel&&sel.bandId===band.id&&!sel.elId?" sel":"");
+  bEl.style.height=mm(band.height)+"px"; bEl.dataset.band=band.id;
+  const tag=document.createElement('div'); tag.className="band-tag";
+  tag.innerHTML=(BAND_TYPES.find(b=>b.t===band.type)?.label||band.type)+(band.dataSource?` · <em>${DOCTYPES[schema.doctype].sources[band.dataSource]?.label||band.dataSource}</em>`:"");
+  bEl.appendChild(tag);
+  band.elements.forEach(el=>bEl.appendChild(buildEl(band,el,false)));
+  const grip=document.createElement('div'); grip.className="band-grip"; grip.addEventListener('mousedown',e=>startBandResize(e,band)); bEl.appendChild(grip);
+  bEl.addEventListener('mousedown',e=>{if(e.target===bEl||e.target===tag)selectBand(band.id);});
+  bEl.addEventListener('contextmenu',e=>openCtx(e,band,null));
+  // drop target for field/block drag
+  bEl.addEventListener('dragover',e=>{e.preventDefault();bEl.classList.add('dropok');});
+  bEl.addEventListener('dragleave',e=>{if(e.target===bEl)bEl.classList.remove('dropok');});
+  bEl.addEventListener('drop',e=>onDrop(e,band,bEl));
+  page.appendChild(bEl);
+ });
+}
+function buildEl(band,el,isPreview){
+ const node=document.createElement('div');
+ node.className="el t_"+el.type+(sel&&sel.elId===el.id?" sel":"")+((!isPreview&&showFields&&(el.type==="field"||el.type==="formula"))?" showfields":"");
+ node.style.left=mm(el.x)+"px";node.style.top=mm(el.y)+"px";node.style.width=mm(el.w)+"px";node.style.height=mm(el.h)+"px";node.dataset.el=el.id;
+ const _zb={rect:1,hline:1,vline:1,image:2};let _zi=(sel&&sel.elId===el.id)?40:(_zb[el.type]||6); if(el.type==="image"&&el.props&&el.props.background)_zi=0; node.style.zIndex=_zi;
+ const p=el.props;
+ if(el.type==="hline"){node.style.height=Math.max(1,mm(p.thick))+"px";node.style.background=p.color;}
+ else if(el.type==="vline"){node.style.width=Math.max(1,mm(p.thick))+"px";node.style.background=p.color;}
+ else if(el.type==="rect"){node.style.background=p.bg||"transparent";node.style.border=(p.border==="all")?`${Math.max(1,mm(p.borderW))}px solid ${p.borderColor}`:"none";}
+ else if(el.type==="qr"){const b=document.createElement('div');b.className="qrbox";node.appendChild(b);renderQR(b,sampleVal(band,el));}
+ else if(el.type==="barcode"){const b=document.createElement('div');b.className="bcbox";node.appendChild(b);renderBarcode(b,sampleVal(band,el),p,el.h);}
+ else if(el.type==="image"){if(p.src){const im=document.createElement('img');im.src=String(p.src).replace(/ /g,"%20");im.style.cssText="width:100%;height:100%;object-fit:"+(p.fit||"contain");im.onerror=()=>{node.innerHTML='<div class="ph">image not found</div>';};node.appendChild(im);}else{const ph=document.createElement('div');ph.className="ph";ph.textContent="🖼 Logo";node.appendChild(ph);}}
+ else if(el.type==="html"){const h=document.createElement('div');h.style.cssText="width:100%;height:100%;overflow:hidden;line-height:1.25;font-size:"+Math.max(5,mm(p.fontSize||9)*0.353)+"px;color:"+(p.color||"#1f2733")+";text-align:"+(p.align||"left")+(p.fontFamily?(";font-family:"+p.fontFamily):"");h.innerHTML=renderHtmlToken(band,el,(isPreview));node.appendChild(h);}
+ else if(el.type==="table"){node.appendChild(buildTablePreview(band,el));}
+ else{
+  const l=document.createElement('div');l.className="lbl";
+  l.style.fontSize=Math.max(5,mm(p.fontSize)*0.353)+"px";l.style.fontWeight=p.bold?"700":"400";l.style.fontStyle=p.italic?"italic":"normal";
+  l.style.textAlign=p.align;l.style.color=p.color;l.style.background=p.bg||"transparent";
+  node.style.justifyContent=p.align==="center"?"center":(p.align==="right"?"flex-end":"flex-start");
+  if(p.border==="all")node.style.border="0.5px solid var(--line2)";
+  if(p.fontFamily)l.style.fontFamily=p.fontFamily;
+  if(p.nowrap){l.style.whiteSpace='nowrap';l.style.overflow='hidden';l.style.textOverflow='ellipsis';}
+  l.textContent=(isPreview||!showFields)?resolveText(band,el):labelText(el);
+  node.appendChild(l);
+ }
+ if(!isPreview){
+  const rs=document.createElement('div');rs.className="rs";node.appendChild(rs);
+  rs.addEventListener('mousedown',e=>startResize(e,band,el));
+  node.addEventListener('mousedown',e=>{if(e.target===rs)return;startMove(e,band,el);});
+  node.addEventListener('contextmenu',e=>{selectEl(band.id,el.id);openCtx(e,band,el);});
+  if(el.type==="formula")node.addEventListener('dblclick',()=>openFormula(band,el));
+ }
+ return node;
+}
+function labelText(el){const p=el.props;if(el.type==="field")return (p.prefix||"")+"["+lbl(p.field)+"]"+(p.suffix||"");if(el.type==="formula")return "ƒ "+friendlyFormula(p.formula);return p.text||"";}
+function friendlyFormula(f){return (f||"").replace(/\{[a-z_]+\.([a-z_0-9]+)\}/gi,(m,fld)=>"["+lbl(fld)+"]");}
+function renderHtmlToken(band,el,isPrev){
+ const data=SAMPLE[schema.doctype]||{};const row=(band.type==="detail"&&band.dataSource)?((data[band.dataSource]||[])[0]||{}):null;
+ let h=el.props.html||"";
+ h=h.replace(/\{\{\s*([a-zA-Z_]+)\.([a-zA-Z_0-9]+)\s*\}\}/g,(m,s2,f)=>{ if(row&&(s2==="row"||s2===band.dataSource))return (row[f]??""); return ((data[s2]||{})[f]??""); });
+ h=h.replace(/\{\{\s*ps_address[^}]*\}\}/g, isPrev?"":'<span style="color:#4b5560">[address block]</span>');
+ h=h.replace(/\{\{[^}]*\}\}/g, isPrev?"":'<span style="color:#caa14a">${…}</span>');
+ return h;
+}
+function buildTablePreview(band,el){
+ const p=el.props,data=SAMPLE[schema.doctype]?.[p.source]||[];
+ const fixed=p.heightMode==="fixed", rowH=p.rowH||6;
+ const t=document.createElement('table');t.style.cssText="width:100%;border-collapse:collapse;font-size:"+Math.max(5,mm(p.fontSize)*0.353)+"px;table-layout:fixed"+(fixed?";height:100%":"");
+ const sb=p.showBorders!==false, sh=p.showHeader!==false;
+ if(sh){const hr=document.createElement('tr');
+ p.columns.forEach(c=>{const th=document.createElement('th');th.textContent=c.label;th.style.cssText=`width:${c.w}%;background:${sb?p.headerBg:'transparent'};${sb?'border:0.5px solid #c9ced6;':''}padding:1px 2px;text-align:${c.align};font-weight:700`;hr.appendChild(th);});
+ t.appendChild(hr);} else { const hr=document.createElement('tr'); p.columns.forEach(c=>{const th=document.createElement('th');th.style.cssText=`width:${c.w}%;height:0;padding:0;border:0`;hr.appendChild(th);}); t.appendChild(hr);}
+ const shown=data.slice(0,fixed?data.length:3);
+ shown.forEach(row=>{const tr=document.createElement('tr');tr.style.height=mm(rowH)+"px";p.columns.forEach(c=>{const td=document.createElement('td');td.textContent=row[c.field]??"";td.style.cssText=`${sb?'border:0.5px solid #d7dbe1;':''}padding:1px 2px;text-align:${c.align};overflow:hidden;white-space:nowrap;text-overflow:ellipsis`;tr.appendChild(td);});t.appendChild(tr);});
+ if(fixed){ const er=(p.showBorders===false)?"blank":(p.emptyRows||"lines"); const avail=Math.max(0,el.h-rowH); const total=Math.max(shown.length, Math.floor(rowH?avail/rowH:shown.length)); for(let i=0;i<total-shown.length;i++){ const tr=document.createElement('tr');tr.style.height=mm(rowH)+"px";p.columns.forEach((c,ci)=>{const td=document.createElement('td');td.innerHTML="&nbsp;";let bd=""; if(er==="blank")bd=""; else if(er==="cols")bd="border-left:0.5px solid #e0e3e8;"+(ci===p.columns.length-1?"border-right:0.5px solid #e0e3e8;":""); else bd="border:0.5px solid #e0e3e8;"; td.style.cssText=bd; tr.appendChild(td);});t.appendChild(tr);} }
+ return t;
+}
+function renderQR(box,text){text=(text||"").toString()||"—";if(typeof qrcode==="undefined"){box.innerHTML=`<div class="ph">QR</div>`;return;}try{const q=qrcode(0,"M");q.addData(text);q.make();box.innerHTML=q.createSvgTag({cellSize:2,margin:0,scalable:true});const s=box.querySelector('svg');if(s){s.style.width="100%";s.style.height="100%";}}catch(e){box.innerHTML=`<div class="ph">QR</div>`;}}
+function renderBarcode(box,text,p,hmm){text=(text||"").toString()||"0000";if(typeof JsBarcode==="undefined"){box.innerHTML=`<div class="ph">▮▯▮</div>`;return;}try{const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");box.innerHTML="";box.appendChild(svg);JsBarcode(svg,text,{format:p.format||"CODE128",displayValue:!!p.showValue,fontSize:11,height:Math.max(20,mm(hmm)*0.7),margin:0,width:1.3});svg.style.width="100%";svg.style.height="100%";}catch(e){box.innerHTML=`<div class="ph">barcode</div>`;}}
+
+/* ===== data resolution ===== */
+function sampleVal(band,el){const p=el.props,data=SAMPLE[schema.doctype]||{};if(band.type==="detail"&&band.dataSource){const r=(data[band.dataSource]||[])[0]||{};return r[p.field];}return (data[p.source]||{})[p.field];}
+function resolveText(band,el,row){
+ const p=el.props,data=SAMPLE[schema.doctype]||{};
+ const gv=(src,f)=>{if(band.type==="detail"&&band.dataSource&&(src===band.dataSource||src==="row"))return (row||(data[band.dataSource]||[])[0]||{})[f];return (data[src]||{})[f];};
+ if(el.type==="text")return p.text||"";
+ if(el.type==="field"){let v=fmt(gv(p.source,p.field),p);return (p.prefix||"")+(v??"")+(p.suffix||"");}
+ if(el.type==="formula"){try{const expr=(p.formula||"").replace(/\{([a-z_]+)\.([a-z_0-9]+)\}/gi,(m,s,f)=>{let v=(""+(gv(s,f)??"0")).replace(/,/g,"");return isNaN(parseFloat(v))?JSON.stringify(v):parseFloat(v);});const val=Function('"use strict";return ('+expr+')')();return p.dtype==="number"?fmt(val,{decimals:p.decimals}):val;}catch(e){return "ƒ?";}}
+ return "";
+}
+function fmt(v,p){if(v==null||v==="")return v;if(p&&p.decimals!==""&&p.decimals!=null){const n=parseFloat((""+v).replace(/,/g,""));if(!isNaN(n))return n.toLocaleString('en-IN',{minimumFractionDigits:+p.decimals,maximumFractionDigits:+p.decimals});}return v;}
+
+function renderPreview(){const data=SAMPLE[schema.doctype]||{};schema.bands.forEach(band=>{
+ if(band.type==="detail"&&band.dataSource&&!band.elements.some(e=>e.type==="table")){(data[band.dataSource]||[]).forEach(row=>{const b=document.createElement('div');b.className="band "+band.type;b.style.height=mm(band.height)+"px";band.elements.forEach(el=>{if(el.type==="table")b.appendChild(buildEl(band,el,false));else{const n=buildEl(band,el,false);const l=n.querySelector('.lbl');if(l)l.textContent=resolveText(band,el,row);b.appendChild(n);}});page.appendChild(b);});}
+ else{const b=document.createElement('div');b.className="band "+band.type;b.style.height=mm(band.height)+"px";band.elements.forEach(el=>b.appendChild(buildEl(band,el,true)));page.appendChild(b);}
+});}
+
+/* ===== move / resize ===== */
+let drag=null;
+function startMove(e,band,el){e.preventDefault();selectEl(band.id,el.id);const sx=e.clientX,sy=e.clientY,ox=el.x,oy=el.y;drag={move:ev=>{let nx=ox+(ev.clientX-sx)/(PXMM*zoom),ny=oy+(ev.clientY-sy)/(PXMM*zoom);if(snap){nx=Math.round(nx/2)*2;ny=Math.round(ny/2)*2;}el.x=Math.max(0,+nx.toFixed(1));el.y=Math.max(0,+ny.toFixed(1));render();buildInspector();}};}
+function startResize(e,band,el){e.preventDefault();e.stopPropagation();selectEl(band.id,el.id);const sx=e.clientX,sy=e.clientY,ow=el.w,oh=el.h;drag={move:ev=>{let nw=ow+(ev.clientX-sx)/(PXMM*zoom),nh=oh+(ev.clientY-sy)/(PXMM*zoom);if(snap){nw=Math.round(nw/2)*2;nh=Math.round(nh/2)*2;}el.w=Math.max(2,+nw.toFixed(1));el.h=Math.max(1,+nh.toFixed(1));render();buildInspector();}};}
+function startBandResize(e,band){e.preventDefault();e.stopPropagation();selectBand(band.id);const sy=e.clientY,oh=band.height;drag={move:ev=>{let nh=oh+(ev.clientY-sy)/(PXMM*zoom);if(snap)nh=Math.round(nh/2)*2;band.height=Math.max(6,+nh.toFixed(1));render();buildInspector();}};}
+window.addEventListener('mousemove',e=>{if(drag)drag.move(e);});
+window.addEventListener('mouseup',()=>{drag=null;});
+
+/* ===== drag fields/blocks onto canvas ===== */
+let dragPayload=null;
+function onDrop(e,band,bEl){
+ e.preventDefault();bEl.classList.remove('dropok');
+ const r=bEl.getBoundingClientRect();
+ let x=(e.clientX-r.left)/(PXMM*zoom), y=(e.clientY-r.top)/(PXMM*zoom);
+ if(snap){x=Math.round(x/2)*2;y=Math.round(y/2)*2;}
+ const pl=dragPayload; if(!pl)return;
+ if(pl.kind==="field"){
+  const inDetail=band.type==="detail"&&band.dataSource;
+  const src=inDetail?band.dataSource:pl.source;
+  const el=mkEl("field",+x.toFixed(1),+y.toFixed(1));
+  el.props.source=src; el.props.field=pl.field;
+  if(ftype(pl.field)===T.num){el.props.align="right";el.props.decimals="2";}
+  band.elements.push(el);selectEl(band.id,el.id);
+ } else if(pl.kind==="element"){
+  const el=mkEl(pl.type,+x.toFixed(1),+y.toFixed(1));band.elements.push(el);selectEl(band.id,el.id);
+ }
+ dragPayload=null;
+}
+
+/* ===== selection + inspector ===== */
+function selectBand(id){sel={bandId:id};render();buildInspector();}
+function selectEl(b,e){sel={bandId:b,elId:e};render();buildInspector();if(leftTab==='layers')buildLayersTab();}
+function findBand(id){return schema.bands.find(b=>b.id===id);}
+function findEl(){if(!sel||!sel.elId)return null;const b=findBand(sel.bandId);return b?b.elements.find(e=>e.id===sel.elId):null;}
+const inspector=document.getElementById('inspector');
+function ftBadge(f){const t=ftype(f);return `<span class="ft ${t}">${t==='num'?'#':t==='date'?'D':'T'}</span>`;}
+function buildInspector(){
+ if(!sel){inspector.innerHTML=`<div class="empty">Click a box to edit it.<br><br>Or drag a <b>Field</b> from the left onto the page.</div>`;return;}
+ const band=findBand(sel.bandId);
+ inspector.innerHTML=sel.elId?inspectorForEl(band,findEl()):inspectorForBand(band);
+ wireInspector();
+}
+function alignSeg(v){return `<div class="seg" data-seg="align">${["left","center","right"].map(a=>`<button data-v="${a}" class="${v===a?'on':''}">${a[0].toUpperCase()}</button>`).join("")}</div>`;}
+
+function inspectorForEl(band,el){
+ const p=el.props,dt=schema.doctype;
+ let body=`<div class="insp-h"><span>${EL[el.type].name}</span><span class="typetag">${el.type}</span></div>`;
+ // friendly binding card for field/qr/barcode
+ if(el.type==="field"||el.type==="qr"||el.type==="barcode"){
+  const inDetail=band.type==="detail"&&band.dataSource;
+  const src=inDetail?band.dataSource:p.source;
+  const srcLabel=DOCTYPES[dt].sources[src]?.label||src;
+  body+=`<div class="sec" style="border:0"><div class="body">
+    <div class="bindcard"><div class="cur">${ftBadge(p.field)}<span>${lbl(p.field)}</span></div>
+    <div class="path">${srcLabel} → ${p.field}</div>
+    <button class="editbind" id="rebind">Change field…</button></div>
+    ${inDetail?`<div class="fieldnote">In the Items band, fields show the value for each row automatically.</div>`:""}
+    </div></div>`;
+ }
+ if(el.type==="formula"){
+  body+=`<div class="sec" style="border:0"><div class="body">
+   <div class="bindcard"><div class="cur">ƒ <span>${friendlyFormula(p.formula)||"(empty)"}</span></div>
+   <div class="path">= ${resolveText(band,el)}</div></div>
+   <button class="formbtn" id="editFormula" style="margin-top:8px">Open calculation builder</button>
+   </div></div>`;
+ }
+ if(el.type==="text"){body+=`<details class="sec" open><summary>Text</summary><div class="body"><textarea data-pp="text">${esc(p.text||"")}</textarea><button class="editbind" id="toField" style="margin-top:8px">Convert to variable (field) →</button><button class="editbind" id="toTable" style="margin-top:6px">Convert to Items table →</button><div class="fieldnote">Turn this into a live field, or into the repeating item table.</div></div></details>`;}
+
+ body+=`<details class="sec" open><summary>Position &amp; size (mm)</summary><div class="body">
+  <div class="mini"><div class="row"><label>X</label><input data-x type="number" step="0.5" value="${el.x}"></div><div class="row"><label>Y</label><input data-y type="number" step="0.5" value="${el.y}"></div></div>
+  <div class="mini"><div class="row"><label>W</label><input data-w type="number" step="0.5" value="${el.w}"></div><div class="row"><label>H</label><input data-h type="number" step="0.5" value="${el.h}"></div></div>
+  </div></details>`;
+
+ if(["text","field","formula"].includes(el.type)){
+  body+=`<details class="sec" open><summary>Look</summary><div class="body">
+   <div class="row"><label>Font</label><select data-pp="fontFamily">${FONTS.map(ff=>`<option value="${ff[0]}" ${(p.fontFamily||"")===ff[0]?'selected':''}>${ff[1]}</option>`).join("")}</select></div>
+   <div class="mini"><div class="row"><label>Size</label><input data-pp="fontSize" type="number" step="0.5" value="${p.fontSize}"></div><div class="row"><label>Color</label><input data-pp="color" type="color" value="${p.color}"></div></div>
+   <div class="row"><label>Align</label>${alignSeg(p.align)}</div>
+   <div class="row"><label>Style</label><label style="width:auto;color:var(--ink)"><input type="checkbox" data-pp="bold" ${p.bold?'checked':''}> Bold</label><label style="width:auto;color:var(--ink)"><input type="checkbox" data-pp="italic" ${p.italic?'checked':''}> Italic</label></div>
+   <div class="row"><label>Wrap</label><label style="width:auto;color:var(--ink)"><input type="checkbox" id="wrapText" ${p.nowrap?'':'checked'}> Wrap long text onto multiple lines</label></div>
+   </div></details>`;
+ }
+ if(el.type==="field"||el.type==="formula"){
+  body+=`<details class="sec"><summary>Number / text format</summary><div class="body">
+   <div class="row"><label>Decimals</label><input data-pp="decimals" placeholder="(none)" value="${p.decimals??''}"></div>
+   ${el.type==="field"?`<div class="row"><label>Before</label><input data-pp="prefix" value="${esc(p.prefix||'')}"></div><div class="row"><label>After</label><input data-pp="suffix" value="${esc(p.suffix||'')}"></div>`:""}
+   </div></details>`;
+ }
+ if(el.type==="barcode"){body+=`<details class="sec" open><summary>Barcode</summary><div class="body"><div class="row"><label>Type</label><select data-pp="format">${["CODE128","CODE39","EAN13","UPC"].map(f=>`<option ${p.format===f?'selected':''}>${f}</option>`).join("")}</select></div><div class="row"><label>Text</label><label style="width:auto;color:var(--ink)"><input type="checkbox" data-pp="showValue" ${p.showValue?'checked':''}> show number</label></div></div></details>`;}
+ if(el.type==="qr"){body+=`<details class="sec" open><summary>QR</summary><div class="body"><div class="row"><label>Quality</label><select data-pp="ecc">${["L","M","Q","H"].map(f=>`<option ${p.ecc===f?'selected':''}>${f}</option>`).join("")}</select></div></div></details>`;}
+ if(el.type==="image"){body+=`<details class="sec" open><summary>Image</summary><div class="body">
+ <button class="editbind" id="upImg" style="margin-bottom:8px">\u2b06 Upload / choose image</button>
+ <div class="row"><label>URL</label><input data-pp="src" placeholder="or paste a URL" value="${esc(p.src||'')}"></div>
+ ${p.src?`<div style="margin-top:6px;text-align:center"><img src="${esc(p.src)}" style="max-width:100%;max-height:90px;border:1px solid var(--line2);border-radius:6px"></div>`:''}
+ <div class="fieldnote">For the logo to appear in the printed PDF, keep the file <b>public</b> (don\u2019t tick \u201cprivate\u201d when uploading).</div>
+ </div></details>`;}
+ if(el.type==="rect"){body+=`<details class="sec" open><summary>Box</summary><div class="body"><div class="row"><label>Border</label><select data-pp="border"><option value="all" ${p.border==='all'?'selected':''}>line</option><option value="none" ${p.border==='none'?'selected':''}>none</option></select></div><div class="row"><label>Color</label><input data-pp="borderColor" type="color" value="${p.borderColor}"></div><div class="row"><label>Fill</label><input data-pp="bg" placeholder="none" value="${p.bg||''}"></div><button class="editbind" id="toTable" style="margin-top:8px">Convert this box to Items table →</button></div></details>`;}
+ if(el.type==="hline"||el.type==="vline"){body+=`<details class="sec" open><summary>Line</summary><div class="body"><div class="row"><label>Thick</label><input data-pp="thick" type="number" step="0.1" value="${p.thick}"></div><div class="row"><label>Color</label><input data-pp="color" type="color" value="${p.color}"></div></div></details>`;}
+ if(el.type==="html"){body+=`<details class="sec" open><summary>Look</summary><div class="body">
+   <div class="row"><label>Font</label><select data-pp="fontFamily">${FONTS.map(ff=>`<option value="${ff[0]}" ${(p.fontFamily||"")===ff[0]?'selected':''}>${ff[1]}</option>`).join("")}</select></div>
+   <div class="mini"><div class="row"><label>Size</label><input data-pp="fontSize" type="number" step="0.5" value="${p.fontSize||9}"></div><div class="row"><label>Color</label><input data-pp="color" type="color" value="${p.color||'#1f2733'}"></div></div>
+   <div class="row"><label>Align</label>${alignSeg(p.align||'left')}</div>
+   </div></details>`;
+   body+=`<details class="sec" open><summary>HTML / Jinja</summary><div class="body"><textarea data-pp="html" spellcheck="false" style="min-height:120px">${esc(p.html||"")}</textarea><div class="fieldnote">Full Jinja is rendered on the server. Use <code>{{ doc.field }}</code>, <code>{% if %}</code>, loops, and any Frappe Jinja method. Great for tax tables, terms, conditional notes.</div></div></details>`;}
+ if(el.type==="table"){body+=`<details class="sec" open><summary>Table height</summary><div class="body">
+   <div class="row"><label>Mode</label><select data-pp="heightMode"><option value="variable" ${p.heightMode!=="fixed"?'selected':''}>Variable (footer follows items)</option><option value="fixed" ${p.heightMode==="fixed"?'selected':''}>Fixed box (empty rows fill)</option></select></div>
+   <div class="row"><label>Row ht</label><input data-pp="rowH" type="number" step="0.5" value="${p.rowH||6}"> <span class="fieldnote" style="margin:0">mm</span></div>
+   <div class="row"><label>Empty rows</label><select data-pp="emptyRows"><option value="lines" ${(p.emptyRows||"lines")==="lines"?'selected':''}>Row lines</option><option value="cols" ${p.emptyRows==="cols"?'selected':''}>Column lines only</option><option value="blank" ${p.emptyRows==="blank"?'selected':''}>Blank (save ink)</option></select></div>
+   <div class="fieldnote"><b>Variable:</b> 1 item \u2192 short table, footer right after. <b>Fixed:</b> the box keeps its height (drag the bottom edge to size it) and fills with empty ruled rows.</div>
+   </div></details>`;
+   body+=`<details class="sec" open><summary>Header &amp; grid lines</summary><div class="body">
+     <div class="row"><label style="width:150px;color:var(--ink)"><input type="checkbox" data-pp="showHeader" ${p.showHeader!==false?'checked':''}> Show header row</div>
+     <div class="row"><label style="width:150px;color:var(--ink)"><input type="checkbox" data-pp="showBorders" ${p.showBorders!==false?'checked':''}> Show grid lines</div>
+     <div class="fieldnote">Overlaying a scanned / PDF template? Turn <b>both off</b> so only the values print over the template\u2019s own grid.</div>
+     </div></details>`;
+   body+=`<details class="sec" open><summary>Table columns</summary><div class="body" id="colEditor"></div></details>`;}
+
+ if(["text","field","formula","html","table","qr","barcode","image","rect"].includes(el.type)){body+=`<details class="sec"><summary>Advanced · show only if</summary><div class="body"><input data-pp="printIf" placeholder="(always show)" value="${esc(p.printIf||'')}"><div class="fieldnote">Optional condition, e.g. <code>{doc.discount_amount} &gt; 0</code>. Leave blank to always print.</div></div></details>`;}
+ body+=`<div class="body"><button class="delbtn" id="delEl">Delete</button></div>`;
+ return body;
+}
+function inspectorForBand(band){
+ const dt=schema.doctype,tableSrcs=Object.keys(DOCTYPES[dt].sources).filter(k=>DOCTYPES[dt].sources[k].table);
+ let body=`<div class="insp-h"><span>Section</span><span class="typetag">${BAND_TYPES.find(b=>b.t===band.type)?.label||band.type}</span></div>`;
+ body+=`<details class="sec" open><summary>Section settings</summary><div class="body">
+  <div class="row"><label>Type</label><select data-band="type">${BAND_TYPES.map(b=>`<option value="${b.t}" ${band.type===b.t?'selected':''}>${b.label}</option>`).join("")}</select></div>
+  <div class="row"><label>Height</label><input data-band="height" type="number" step="0.5" value="${band.height}"></div>`;
+ if(band.type==="detail"||band.type==="group_header"||band.type==="group_footer"){
+  body+=`<div class="row"><label>Repeat&nbsp;for</label><select data-band="dataSource"><option value="">—</option>${tableSrcs.map(k=>`<option value="${k}" ${band.dataSource===k?'selected':''}>${DOCTYPES[dt].sources[k].label}</option>`).join("")}</select></div>
+   <div class="fieldnote">This section prints once for every row.</div>`;
+ }
+ body+=`</div></details><div class="body"><div class="fieldnote" style="margin-bottom:8px">${band.elements.length} box(es) here.</div><button class="delbtn" id="delBand">Delete section</button></div>`;
+ return body;
+}
+function wireInspector(){
+ const band=findBand(sel.bandId),el=findEl();
+ ["x","y","w","h"].forEach(k=>{const i=inspector.querySelector(`[data-${k}]`);if(i)i.addEventListener('input',()=>{el[k]=parseFloat(i.value)||0;render();});});
+ inspector.querySelectorAll('[data-pp]').forEach(inp=>{const ev=inp.type==="checkbox"||inp.tagName==="SELECT"?"change":"input";inp.addEventListener(ev,()=>{el.props[inp.dataset.pp]=inp.type==="checkbox"?inp.checked:inp.value;render();});});
+ inspector.querySelectorAll('[data-seg]').forEach(seg=>seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{el.props[seg.dataset.seg]=b.dataset.v;render();buildInspector();})));
+ inspector.querySelectorAll('[data-band]').forEach(inp=>{const ev=inp.tagName==="SELECT"?"change":"input";inp.addEventListener(ev,()=>{let v=inp.value;if(inp.dataset.band==="height")v=parseFloat(v)||10;band[inp.dataset.band]=v;if(inp.dataset.band==="type"){band.showOn=SHOW_ON[v]||"every_page";if(!["detail","group_header","group_footer"].includes(v))band.dataSource=undefined;}render();buildInspector();});});
+ const rb=inspector.querySelector('#rebind');if(rb)rb.addEventListener('click',()=>openFieldPicker(band,el));
+ const ui=inspector.querySelector('#upImg');if(ui)ui.addEventListener('click',async()=>{ if(!EMBEDDED){alert('Image upload works inside ERPNext.');return;} const url=await bridge('pickImage',{}); if(url){ el.props.src=url; render(); buildInspector(); } });
+ const tf=inspector.querySelector('#toField');if(tf)tf.addEventListener('click',()=>{ const keep=el.props; el.type='field'; el.props={source:'doc',field:(DOCTYPES[schema.doctype].sources.doc.fields[1]||{name:'name'}).name,fontSize:keep.fontSize,bold:keep.bold,italic:keep.italic,align:keep.align,color:keep.color,bg:keep.bg||'',prefix:'',suffix:'',decimals:'',border:'none'}; render(); buildInspector(); openFieldPicker(band,el); });
+ const tt=inspector.querySelector('#toTable');if(tt)tt.addEventListener('click',()=>convertToTable(band,el));
+ const wt=inspector.querySelector('#wrapText');if(wt)wt.addEventListener('change',()=>{el.props.nowrap=!wt.checked;render();});
+ const ef=inspector.querySelector('#editFormula');if(ef)ef.addEventListener('click',()=>openFormula(band,el));
+ const de=inspector.querySelector('#delEl');if(de)de.addEventListener('click',()=>{band.elements=band.elements.filter(x=>x.id!==el.id);sel={bandId:band.id};render();buildInspector();});
+ const db=inspector.querySelector('#delBand');if(db)db.addEventListener('click',()=>{if(schema.bands.length<=1)return;schema.bands=schema.bands.filter(x=>x.id!==band.id);sel=null;render();buildInspector();});
+ const ce=inspector.querySelector('#colEditor');if(ce)buildColEditor(ce,band,el);
+}
+function makeTableProps(){ const dt=schema.doctype; const src=DOCTYPES[dt].sources; const tbl=Object.keys(src).find(k=>src[k].table)||"items"; const flds=((src[tbl]&&src[tbl].fields)||[]).filter(f=>f.name!=="idx").slice(0,6); const cols=flds.map((f,i)=>({field:f.name,label:f.label||lbl(f.name),w:i===0?40:12,align:f.type==="num"?"right":"left"})); cols.unshift({field:"idx",label:"#",w:7,align:"center"}); return {source:tbl,columns:cols,fontSize:8,headerBg:"#eef4f7",heightMode:"variable",rowH:6,emptyRows:"lines",showHeader:true,showBorders:true}; }
+function convertToTable(band,el){ const x=el.x,y=el.y,w=el.w,h=el.h; el.type="table"; el.props=makeTableProps(); el.x=x;el.y=y;el.w=Math.max(w,60);el.h=Math.max(h,12); render(); buildInspector(); if(EMBEDDED)bridge('notify',{msg:"Converted to Items table \u2014 set columns to match your template"}); }
+function buildColEditor(host,band,el){
+ const p=el.props,fields=DOCTYPES[schema.doctype].sources[p.source].fields;
+ host.innerHTML=p.columns.map((c,i)=>`<div class="row" style="gap:5px"><input style="flex:1.2" data-col="${i}" data-k="label" value="${esc(c.label)}"><select style="flex:1.4" data-col="${i}" data-k="field">${fields.map(f=>`<option value="${f}" ${c.field===f?'selected':''}>${lbl(f)}</option>`).join("")}</select><input style="width:38px" data-col="${i}" data-k="w" type="number" value="${c.w}" title="width %"><button data-upcol="${i}" title="move left" style="border:1px solid var(--line2);background:#fff;border-radius:6px;width:22px">\u2191</button><button data-downcol="${i}" title="move right" style="border:1px solid var(--line2);background:#fff;border-radius:6px;width:22px">\u2193</button><button data-delcol="${i}" style="border:0;background:#fdf0f0;color:#9a3434;border-radius:6px;width:24px">×</button></div>`).join("")
+  +`<button class="editbind" id="addcol" style="margin-top:6px">+ Add column</button>`;
+ host.querySelectorAll('[data-col]').forEach(inp=>{const ev=inp.tagName==="SELECT"?"change":"input";inp.addEventListener(ev,()=>{const c=p.columns[+inp.dataset.col];c[inp.dataset.k]=inp.dataset.k==="w"?(+inp.value||10):inp.value;render();});});
+const _mv=(i,j)=>{if(j<0||j>=p.columns.length)return;const t=p.columns[i];p.columns[i]=p.columns[j];p.columns[j]=t;render();buildInspector();};
+ host.querySelectorAll('[data-upcol]').forEach(b=>b.addEventListener('click',()=>_mv(+b.dataset.upcol,+b.dataset.upcol-1)));
+ host.querySelectorAll('[data-downcol]').forEach(b=>b.addEventListener('click',()=>_mv(+b.dataset.downcol,+b.dataset.downcol+1)));
+ host.querySelectorAll('[data-delcol]').forEach(b=>b.addEventListener('click',()=>{p.columns.splice(+b.dataset.delcol,1);render();buildInspector();}));
+ host.querySelector('#addcol').addEventListener('click',()=>{p.columns.push({field:fields[1]||fields[0],label:lbl(fields[1]||fields[0]),w:14,align:"left"});render();buildInspector();});
+}
+
+/* ===== LEFT PANEL (tabs) ===== */
+const leftbody=document.getElementById('leftbody');
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{leftTab=b.dataset.tab;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));buildLeft();}));
+function buildLeft(){
+ if(leftTab==="fields")buildFieldsTab();
+ else if(leftTab==="blocks")buildBlocksTab();
+ else if(leftTab==="layers") buildLayersTab();
+ else buildElementsTab();
+}
+function buildFieldsTab(){
+ const dt=schema.doctype,srcs=DOCTYPES[dt].sources;
+ let html=`<div class="tip">Drag any field onto the page. It shows the real value automatically — no typing needed.</div>`;
+ Object.keys(srcs).forEach(sk=>{
+  const s=srcs[sk];
+  html+=`<div class="gh">${s.label}${s.table?' · repeats per row':''}</div>`;
+  s.fields.forEach(f=>{
+   html+=`<button class="fld" draggable="true" data-src="${sk}" data-field="${f}">
+     <span class="ft ${ftype(f)}">${ftype(f)==='num'?'#':ftype(f)==='date'?'D':'T'}</span>
+     <span class="nm">${lbl(f)}<small>${f}</small></span><span class="drag">⠿</span></button>`;
+  });
+ });
+ leftbody.innerHTML=html;
+ leftbody.querySelectorAll('.fld').forEach(b=>{
+  b.addEventListener('dragstart',e=>{dragPayload={kind:"field",source:b.dataset.src,field:b.dataset.field};e.dataTransfer.effectAllowed="copy";});
+  b.addEventListener('click',()=>{ // click = drop into selected band (or header)
+   const band=sel?findBand(sel.bandId):schema.bands[0];
+   dragPayload={kind:"field",source:b.dataset.src,field:b.dataset.field};
+   const inDetail=band.type==="detail"&&band.dataSource;
+   const el=mkEl("field",10,Math.max(2,band.height/2-3));el.props.source=inDetail?band.dataSource:b.dataset.src;el.props.field=b.dataset.field;
+   if(ftype(b.dataset.field)===T.num){el.props.align="right";el.props.decimals="2";}
+   band.elements.push(el);selectEl(band.id,el.id);dragPayload=null;
+  });
+ });
+}
+function buildElementsTab(){
+ const order=["text","formula","html","image","qr","barcode","table","rect","hline","vline"];
+ leftbody.innerHTML=`<div class="tip">Click to add to the selected section, or drag onto the page.</div>`+
+  order.map(t=>`<button class="pitem" draggable="true" data-add="${t}"><span class="ico">${EL[t].ico}</span><span>${EL[t].name}<small>${addHint(t)}</small></span></button>`).join("");
+ leftbody.querySelectorAll('[data-add]').forEach(b=>{
+  b.addEventListener('click',()=>addElement(b.dataset.add));
+  b.addEventListener('dragstart',e=>{dragPayload={kind:"element",type:b.dataset.add};e.dataTransfer.effectAllowed="copy";});
+ });
+}
+function addHint(t){return{text:"a label or heading",formula:"add / subtract fields",image:"company logo",qr:"GST / IRN QR",barcode:"invoice number",table:"line items",rect:"draw a box",hline:"divider line",vline:"divider line",html:"raw HTML / Jinja block"}[t];}
+function elLabel(el){const p=el.props||{};
+ if(el.type==="text")return (p.text||"(text)").slice(0,28);
+ if(el.type==="field")return "{ "+lbl(p.field||"")+" }";
+ if(el.type==="formula")return "\u0192 "+friendlyFormula(p.formula||"").slice(0,22);
+ if(el.type==="qr")return "QR \u00b7 "+lbl(p.field||"");
+ if(el.type==="barcode")return "Barcode \u00b7 "+lbl(p.field||"");
+ if(el.type==="table")return "Items table";
+ if(el.type==="image")return "Logo / Image";
+ if(el.type==="rect")return "Box / Frame";
+ if(el.type==="hline")return "Line \u2014";
+ if(el.type==="vline")return "Line |";
+ if(el.type==="html")return "HTML / Jinja";
+ return el.type;}
+function buildLayersTab(){
+ let html=`<div class="tip">Every box on the page. Click to select \u2014 handy when things overlap after an import.</div>`;
+ schema.bands.forEach(b=>{
+  html+=`<div class="gh">${BAND_TYPES.find(x=>x.t===b.type)?.label||b.type} \u00b7 ${b.elements.length}</div>`;
+  if(!b.elements.length){ html+=`<div class="fieldnote" style="margin:0 4px 6px">(empty)</div>`; }
+  b.elements.forEach(e=>{
+   const onSel = sel&&sel.elId===e.id;
+   html+=`<button class="fld" data-lb="${b.id}|${e.id}" style="${onSel?'border-color:var(--accent);background:var(--accent-soft)':''}">
+     <span class="ft ${e.type==='field'||e.type==='formula'?'num':(e.type==='rect'||e.type==='hline'||e.type==='vline'||e.type==='image'?'date':'txt')}">${e.type==='field'||e.type==='formula'?'\u0192':(e.type==='rect'||e.type==='hline'||e.type==='vline'?'\u25a1':(e.type==='image'?'\u25a4':'T'))}</span>
+     <span class="nm">${esc(elLabel(e))}<small>${e.type} \u00b7 ${Math.round(e.x)},${Math.round(e.y)}mm</small></span>
+     <span class="drag" data-del="${b.id}|${e.id}" title="Delete" style="cursor:pointer;color:#c08a8a">\u00d7</span></button>`;
+  });
+ });
+ leftbody.innerHTML=html;
+ leftbody.querySelectorAll('[data-lb]').forEach(btn=>btn.addEventListener('click',ev=>{
+   if(ev.target.hasAttribute('data-del')) return;
+   const [bid,eid]=btn.dataset.lb.split("|"); selectEl(bid,eid);
+   const node=[...page.querySelectorAll('.el')].find(n=>n.dataset.el===eid); if(node&&node.scrollIntoView) node.scrollIntoView({block:'center',behavior:'smooth'});
+ }));
+ leftbody.querySelectorAll('[data-del]').forEach(x=>x.addEventListener('click',ev=>{ev.stopPropagation();const [bid,eid]=x.dataset.del.split("|");const b=findBand(bid);if(b){b.elements=b.elements.filter(e=>e.id!==eid);if(sel&&sel.elId===eid)sel={bandId:bid};render();buildInspector();buildLayersTab();}}));
+}
+function buildBlocksTab(){
+ leftbody.innerHTML=`<div class="tip">Ready-made sections. Click one to drop it in — then tweak.</div>`+
+  BLOCKS.map((b,i)=>`<button class="block" data-block="${i}"><div class="bt"><span class="d"></span>${b.name}</div><small>${b.desc}</small></button>`).join("");
+ leftbody.querySelectorAll('[data-block]').forEach(b=>b.addEventListener('click',()=>insertBlock(BLOCKS[+b.dataset.block])));
+}
+
+/* ===== blocks ===== */
+const BLOCKS=[
+ {name:"Company header",desc:"Logo area + company name, address & GSTIN",band:"report_header",build:()=>[
+  asg(mkEl("image",8,3),{w:26,h:16,props:{src:"",fit:"contain"}}),
+  asg(mkEl("field",38,3),{w:80,props:{source:"company",field:"company_name",fontSize:13,bold:true,align:"left",color:"#1f2733",bg:"",border:"none"}}),
+  asg(mkEl("field",38,11),{w:90,h:8,props:{source:"company",field:"address_line1",fontSize:8,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("field",38,18),{w:70,props:{source:"company",field:"gstin",prefix:"GSTIN: ",fontSize:8,align:"left",color:"#4b5560",bg:"",border:"none"}})
+ ]},
+ {name:"Bill-To block",desc:"Customer name, address, GSTIN & contact",band:"report_header",build:()=>[
+  asg(mkEl("text",8,2),{w:18,h:5,props:{text:"Bill To",fontSize:9,bold:true,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("field",8,7),{w:80,props:{source:"customer",field:"customer_name",fontSize:10,bold:true,align:"left",color:"#1f2733",bg:"",border:"none"}}),
+  asg(mkEl("field",8,13),{w:90,h:9,props:{source:"customer",field:"billing_address",fontSize:8,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("field",8,23),{w:70,props:{source:"customer",field:"gstin",prefix:"GSTIN: ",fontSize:8,align:"left",color:"#4b5560",bg:"",border:"none"}})
+ ]},
+ {name:"Items table",desc:"Auto line-items: #, description, HSN, qty, rate, tax",band:"detail",build:()=>[mkEl("table",8,1)]},
+ {name:"Totals block",desc:"Net, tax & grand total + amount in words",band:"report_footer",build:()=>[
+  asg(mkEl("text",118,1),{w:42,h:5,props:{text:"Taxable Value",fontSize:9,align:"right",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("field",162,1),{w:38,h:5,props:{source:"doc",field:"net_total",fontSize:9,align:"right",decimals:"2",color:"#1f2733",bg:"",border:"none"}}),
+  asg(mkEl("text",118,7),{w:42,h:5,props:{text:"Total Tax",fontSize:9,align:"right",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("field",162,7),{w:38,h:5,props:{source:"doc",field:"total_taxes_and_charges",fontSize:9,align:"right",decimals:"2",color:"#1f2733",bg:"",border:"none"}}),
+  asg(mkEl("text",118,13),{w:42,h:6,props:{text:"Grand Total",fontSize:11,bold:true,align:"right",color:"#1f2733",bg:"",border:"none"}}),
+  asg(mkEl("field",162,13),{w:38,h:6,props:{source:"doc",field:"grand_total",prefix:"INR ",fontSize:11,bold:true,align:"right",color:"#1f2733",bg:"",border:"none"}}),
+  asg(mkEl("field",8,21),{w:130,h:5,props:{source:"doc",field:"in_words",prefix:"Amount in words: ",italic:true,fontSize:8,align:"left",color:"#4b5560",bg:"",border:"none"}})
+ ]},
+ {name:"White cover (erase area)",desc:"Opaque white box to hide part of an imported template",band:"report_header",build:()=>[
+  asg(mkEl("rect",24,24),{w:46,h:10,props:{border:"none",borderColor:"#333333",bg:"#ffffff"}})
+ ]},
+ {name:"GST QR stamp",desc:"e-Invoice QR code + invoice number barcode",band:"report_header",build:()=>[
+  asg(mkEl("qr",172,2),{w:24,h:24,props:{source:"doc",field:"qr_code",ecc:"M"}}),
+  asg(mkEl("barcode",128,27),{w:66,h:12,props:{source:"doc",field:"name",format:"CODE128",showValue:true}})
+ ]},
+ {name:"Company address (full)",desc:"Clean multi-line company address \u2014 no \u201cBilling\u201d title",band:"report_header",build:()=>[
+  asg(mkEl("text",8,2),{w:30,h:5,props:{text:"From:",fontSize:9,bold:true,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("html",8,7),{w:92,h:24,props:{html:"{{ ps_address(doc.company_address) }}",printIf:""}})
+ ]},
+ {name:"Billing address (full)",desc:"Customer billing address block, clean",band:"report_header",build:()=>[
+  asg(mkEl("text",8,2),{w:30,h:5,props:{text:"Bill To:",fontSize:9,bold:true,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("html",8,7),{w:92,h:24,props:{html:"{{ ps_address(doc.customer_address) }}",printIf:""}})
+ ]},
+ {name:"Shipping address (full)",desc:"Customer shipping/delivery address block",band:"report_header",build:()=>[
+  asg(mkEl("text",8,2),{w:30,h:5,props:{text:"Ship To:",fontSize:9,bold:true,align:"left",color:"#4b5560",bg:"",border:"none"}}),
+  asg(mkEl("html",8,7),{w:92,h:24,props:{html:"{{ ps_address(doc.shipping_address_name) }}",printIf:""}})
+ ]}
+];
+function insertBlock(block){
+ let band=schema.bands.find(b=>b.type===block.band);
+ if(!band){band={id:nid("b"),type:block.band,height:block.band==="detail"?22:36,showOn:SHOW_ON[block.band]||"every_page",elements:[]};if(block.band==="detail")band.dataSource="items";const idx=block.band==="report_footer"?schema.bands.length:1;schema.bands.splice(idx,0,band);}
+ if(block.band==="detail"&&!band.dataSource)band.dataSource="items";
+ block.build().forEach(el=>band.elements.push(el));
+ selectBand(band.id);
+}
+
+/* ===== context menu ===== */
+const ctx=document.getElementById('ctx');let ctxBand=null,ctxPos={x:0,y:0};
+function openCtx(e,band,ctxEl){e.preventDefault();ctxBand=band;const bEl=[...page.children].find(c=>c.dataset.band===band.id);const r=bEl.getBoundingClientRect();ctxPos={x:(e.clientX-r.left)/(PXMM*zoom),y:(e.clientY-r.top)/(PXMM*zoom)};
+ let h="";
+ if(ctxEl){
+   h+=`<button data-act="del" style="color:#9a3434"><span class="k">\u2715</span>Delete this</button>`;
+   h+=`<button data-act="dup"><span class="k">\u2398</span>Duplicate</button><div class="sepm"></div>`;
+ }
+ const items=[["text","Text"],["formula","Calculation"],["html","HTML / Jinja"],null,["image","Image"],["table","Items table"],["rect","Box"],["hline","Line —"],["vline","Line |"]];
+ h+=items.map(it=>it===null?'<div class="sepm"></div>':`<button data-ctx="${it[0]}"><span class="k">${EL[it[0]].ico}</span>${it[1]}</button>`).join("");
+ ctx.innerHTML=h;
+ ctx.querySelectorAll('[data-ctx]').forEach(b=>b.addEventListener('click',()=>{sel={bandId:ctxBand.id};addElement(b.dataset.ctx,+ctxPos.x.toFixed(1),+ctxPos.y.toFixed(1));hideCtx();}));
+ const da=ctx.querySelector('[data-act="del"]'); if(da)da.addEventListener('click',()=>{band.elements=band.elements.filter(x=>x.id!==ctxEl.id);sel={bandId:band.id};hideCtx();render();buildInspector();if(leftTab==='layers')buildLayersTab();});
+ const du=ctx.querySelector('[data-act="dup"]'); if(du)du.addEventListener('click',()=>{const c=JSON.parse(JSON.stringify(ctxEl));c.id=nid("e");c.x=+(ctxEl.x+4).toFixed(1);c.y=+(ctxEl.y+4).toFixed(1);band.elements.push(c);selectEl(band.id,c.id);hideCtx();});
+ ctx.style.display="block";const mw=ctx.offsetWidth,mh=ctx.offsetHeight;ctx.style.left=Math.min(e.clientX,innerWidth-mw-6)+"px";ctx.style.top=Math.min(e.clientY,innerHeight-mh-6)+"px";}
+function hideCtx(){ctx.style.display="none";}
+window.addEventListener('click',e=>{if(!ctx.contains(e.target))hideCtx();});
+window.addEventListener('scroll',hideCtx,true);
+window.addEventListener('keydown',e=>{
+ if(e.key!=="Delete"&&e.key!=="Backspace")return;
+ const tg=e.target&&e.target.tagName; if(tg==="INPUT"||tg==="TEXTAREA"||tg==="SELECT")return;
+ if(sel&&sel.elId){ e.preventDefault(); const b=findBand(sel.bandId); if(b){b.elements=b.elements.filter(x=>x.id!==sel.elId);sel={bandId:b.id};render();buildInspector();if(leftTab==='layers')buildLayersTab();} }
+});
+function targetBand(){return sel?findBand(sel.bandId):schema.bands[0];}
+function addElement(type,x,y){const band=targetBand();if(!band)return;const el=mkEl(type,x??10,y??Math.max(2,band.height/2-4));if(band.type==="detail"&&band.dataSource&&(type==="field"||type==="qr"||type==="barcode"))el.props.field=DOCTYPES[schema.doctype].sources[band.dataSource].fields.find(f=>f!=="idx")||"item_name";band.elements.push(el);selectEl(band.id,el.id);if(type==="formula")openFormula(band,el);}
+
+/* ===== modals: field picker, formula builder, export ===== */
+const modal=document.getElementById('modal'),modalBody=document.getElementById('modalBody'),modalTitle=document.getElementById('modalTitle'),modalFoot=document.getElementById('modalFoot');
+document.getElementById('modalClose').onclick=()=>modal.style.display="none";
+modal.addEventListener('click',e=>{if(e.target===modal)modal.style.display="none";});
+function showModal(){modal.style.display="flex";}
+
+function openFieldPicker(band,el){
+ const dt=schema.doctype,srcs=DOCTYPES[dt].sources;
+ modalTitle.textContent="Choose a field";
+ let html=`<div class="tip" style="margin-bottom:12px">Pick what this box should show.</div><div class="picklist" style="max-height:48vh">`;
+ Object.keys(srcs).forEach(sk=>{html+=`<div class="gh">${srcs[sk].label}</div>`;srcs[sk].fields.forEach(f=>{html+=`<button class="pk" data-src="${sk}" data-f="${f}">${ftBadge(f)} ${lbl(f)} <small>${f}</small></button>`;});});
+ html+=`</div>`;modalBody.innerHTML=html;modalFoot.innerHTML="";
+ modalBody.querySelectorAll('.pk').forEach(b=>b.addEventListener('click',()=>{const inDetail=band.type==="detail"&&band.dataSource;el.props.source=inDetail?band.dataSource:b.dataset.src;el.props.field=b.dataset.f;modal.style.display="none";render();buildInspector();}));
+ showModal();
+}
+
+let fbState=null;
+function openFormula(band,el){
+ fbState={band,el};const dt=schema.doctype,srcs=DOCTYPES[dt].sources;
+ modalTitle.textContent="Calculation builder";
+ let picks=`<div class="picklist">`;
+ Object.keys(srcs).forEach(sk=>{const s=srcs[sk];picks+=`<div class="gh">${s.label}</div>`;s.fields.filter(f=>ftype(f)===T.num).forEach(f=>{picks+=`<button class="pk" data-token="{${sk}.${f}}">${ftBadge(f)} ${lbl(f)}</button>`;});});
+ picks+=`</div>`;
+ modalBody.innerHTML=`<div class="fb">
+   <div><div class="gh">1 · Click number fields to add</div>${picks}</div>
+   <div><div class="gh">2 · Build the calculation</div>
+     <div class="ops">${["+","−","×","÷","(",")","%"].map(o=>`<button data-op="${o}">${o}</button>`).join("")}<button data-op="C" style="color:#9a3434">clear</button></div>
+     <textarea class="expr" id="fbExpr" spellcheck="false">${esc(el.props.formula||"")}</textarea>
+     <div class="result" id="fbResult"><div class="rl">Live result on this invoice</div><div class="rv" id="fbVal">—</div></div>
+     <div class="meta"><label style="width:auto;color:var(--muted)">Decimals</label><input id="fbDec" style="width:70px" value="${el.props.decimals??'2'}"></div>
+   </div></div>
+   <div class="fieldnote" style="margin-top:12px">Tip: this shows e.g. <b>${lbl('net_total')} ${'+'} ${lbl('total_taxes_and_charges')}</b>. You never type field names — just click them.</div>`;
+ modalFoot.innerHTML=`<button class="tbtn" id="fbCancel">Cancel</button><button class="tbtn primary" id="fbSave">Use this calculation</button>`;
+ const expr=document.getElementById('fbExpr');
+ const ins=t=>{const s=expr.selectionStart||expr.value.length;expr.value=expr.value.slice(0,s)+t+expr.value.slice(s);expr.selectionStart=expr.selectionEnd=s+t.length;expr.focus();recalc();};
+ modalBody.querySelectorAll('[data-token]').forEach(b=>b.addEventListener('click',()=>ins(b.dataset.token+" ")));
+ modalBody.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{const o=b.dataset.op;if(o==="C"){expr.value="";recalc();return;}const map={"−":"-","×":"*","÷":"/"};ins((map[o]||o)+" ");}));
+ expr.addEventListener('input',recalc);
+ function recalc(){
+  const res=document.getElementById('fbResult'),val=document.getElementById('fbVal');
+  try{const data=SAMPLE[dt]||{};const e2=expr.value.replace(/\{([a-z_]+)\.([a-z_0-9]+)\}/gi,(m,s,f)=>{let v;if(fbState.band.type==="detail"&&fbState.band.dataSource&&(s===fbState.band.dataSource))v=(data[fbState.band.dataSource]||[])[0]?.[f];else v=(data[s]||{})[f];v=(""+(v??"0")).replace(/,/g,"");return isNaN(parseFloat(v))?"0":parseFloat(v);});
+   if(!e2.trim()){val.textContent="—";res.classList.remove('err');return;}
+   const out=Function('"use strict";return ('+e2+')')();const dec=+document.getElementById('fbDec').value||0;
+   val.textContent=isNaN(out)?out:Number(out).toLocaleString('en-IN',{minimumFractionDigits:dec,maximumFractionDigits:dec});res.classList.remove('err');
+  }catch(err){val.textContent="check the calculation";res.classList.add('err');}
+ }
+ recalc();
+ document.getElementById('fbCancel').onclick=()=>modal.style.display="none";
+ document.getElementById('fbSave').onclick=()=>{el.props.formula=expr.value.trim();el.props.dtype="number";el.props.decimals=document.getElementById('fbDec').value;modal.style.display="none";render();buildInspector();};
+ showModal();
+}
+
+const doctypeSel=document.getElementById('doctypeSel');
+doctypeSel.addEventListener('change',()=>{ if(!confirm("Switch document type? A fresh layout loads.")){doctypeSel.value=schema.doctype;return;} selectDoctype(doctypeSel.value); });
+async function populateDoctypes(){ let list=KNOWN.slice(); if(EMBEDDED){ const dl=await bridge('listDoctypes',{}); if(dl&&dl.length) list=dl; } if(list.indexOf(schema.doctype)<0) list.unshift(schema.doctype); doctypeSel.innerHTML=list.map(d=>`<option ${d===schema.doctype?'selected':''}>${d}</option>`).join(""); }
+
+document.getElementById('zoomIn').onclick=()=>{zoom=Math.min(2,zoom+0.1);applyZoom();};
+document.getElementById('zoomOut').onclick=()=>{zoom=Math.max(0.5,zoom-0.1);applyZoom();};
+function applyZoom(){document.getElementById('zoomLbl').textContent=Math.round(zoom*100)+"%";render();}
+
+/* ---- Tidy an imported layout ---- */
+function tidyLayout(){
+ let removed=0, fixed=0;
+ schema.bands.forEach(b=>{
+  const seen=new Set();
+  b.elements = b.elements.filter(el=>{
+   if(el.type==="text"){
+    const t=(el.props.text||"").trim();
+    if(!t){removed++; return false;}
+    const key=t+"@"+Math.round(el.x/3)+","+Math.round(el.y/3);
+    if(seen.has(key)){removed++; return false;}
+    seen.add(key);
+    el.props.nowrap=true;
+    el.h=Math.max(3,+(el.props.fontSize*0.5).toFixed(1));
+    fixed++;
+   }
+   return true;
+  });
+ });
+ render(); buildInspector(); if(leftTab==='layers')buildLayersTab();
+ if(EMBEDDED) bridge('notify',{msg:`Tidied \u2014 ${fixed} text boxes fitted, ${removed} removed`});
+}
+const _tb=document.getElementById('tidyBtn'); if(_tb)_tb.onclick=tidyLayout;
+
+/* ---- Page setup: combine formats + repeating header + page numbers ---- */
+function pageCfg(){ schema.page=schema.page||{}; schema.page.pageNumber=schema.page.pageNumber||{show:false,format:"x_of_y",pos:"BR",fontSize:8}; return schema.page; }
+async function openPageSetup(){
+ const pg=pageCfg();
+ modalTitle.textContent="Page setup";
+ let layoutOpts='<option value="">\u2014 none \u2014</option>';
+ if(EMBEDDED){ const rows=await bridge('listLayouts',{ref_doctype:schema.doctype})||[]; rows.filter(r=>r.name!==currentLayoutName).forEach(r=>{ layoutOpts+=`<option value="${esc(r.name)}" ${pg.appendLayout===r.name?'selected':''}>${esc(r.title)}</option>`; }); }
+ const pn=pg.pageNumber;
+ modalBody.innerHTML=`
+  <div class="gh">Page</div>
+  <div class="row"><label style="width:90px">Orientation</label><select id="psOrient"><option value="portrait" ${(pg.orientation||'portrait')==='portrait'?'selected':''}>Portrait</option><option value="landscape" ${pg.orientation==='landscape'?'selected':''}>Landscape</option></select></div>
+  <div class="gh" style="margin-top:14px">Combine formats (POD workflow)</div>
+  <div class="tip" style="margin-bottom:8px">After this layout, also print another on a new page \u2014 e.g. an invoice followed by a dispatch copy the customer signs and returns.</div>
+  <div class="row"><label style="width:120px">Also print after</label><select id="psAppend">${layoutOpts}</select></div>
+  <div class="fieldnote">Both must be for <b>${esc(schema.doctype)}</b> (same document).</div>
+
+  <div class="gh" style="margin-top:14px">Repeat on every page</div>
+  <div class="row"><label style="width:200px;color:var(--ink)"><input type="checkbox" id="psRepeat" ${pg.repeatHeader?'checked':''}> Repeat the Page Top section on every page</div>
+
+  <div class="gh" style="margin-top:14px">Page numbers</div>
+  <div class="row"><label style="width:140px;color:var(--ink)"><input type="checkbox" id="pnShow" ${pn.show?'checked':''}> Show page numbers</div>
+  <div class="row"><label style="width:90px">Style</label><select id="pnFmt">
+    <option value="x_of_y" ${pn.format==='x_of_y'?'selected':''}>Page 1 of 5</option>
+    <option value="x_slash_y" ${pn.format==='x_slash_y'?'selected':''}>1 / 5</option>
+    <option value="x" ${pn.format==='x'?'selected':''}>1</option></select></div>
+  <div class="row"><label style="width:90px">Position</label><select id="pnPos">
+    ${[["BR","Bottom right"],["BC","Bottom center"],["BL","Bottom left"],["TR","Top right"],["TC","Top center"],["TL","Top left"]].map(o=>`<option value="${o[0]}" ${pn.pos===o[0]?'selected':''}>${o[1]}</option>`).join("")}</select></div>
+  <div class="row"><label style="width:90px">Size (pt)</label><input id="pnSize" type="number" style="width:80px" value="${pn.fontSize||8}"></div>
+  <div class="fieldnote">Page numbers &amp; repeating header are produced by the print engine; check the PDF preview after saving.</div>
+  <div class="gh" style="margin-top:14px">Developer \u2014 code version</div>
+  <div class="fieldnote" style="margin-bottom:6px">Export this layout as standalone Jinja/HTML you can hand-edit or version-control. It renders without the layout record.</div>
+  <button class="tbtn" id="psCode" style="width:100%">\u003c/\u003e Show / export code (Jinja)</button>`;
+ modalFoot.innerHTML=`<button class="tbtn" id="psCancel">Cancel</button><button class="tbtn primary" id="psSave">Apply</button>`;
+ document.getElementById('psCancel').onclick=()=>modal.style.display="none";
+ document.getElementById('psSave').onclick=()=>{
+   pg.orientation=document.getElementById('psOrient').value;
+   pg.appendLayout=document.getElementById('psAppend').value||"";
+   pg.repeatHeader=document.getElementById('psRepeat').checked;
+   pg.pageNumber={show:document.getElementById('pnShow').checked, format:document.getElementById('pnFmt').value, pos:document.getElementById('pnPos').value, fontSize:+document.getElementById('pnSize').value||8};
+   modal.style.display="none";
+   render(); buildInspector();
+   if(EMBEDDED) bridge('notify',{msg:"Page setup applied \u2014 Save to keep it"});
+ };
+ showModal();
+}
+const _ps=document.getElementById('pageSetupBtn'); if(_ps)_ps.onclick=openPageSetup;
+document.getElementById('showData').onclick=()=>{showFields=false;sd();};
+document.getElementById('showFields').onclick=()=>{showFields=true;sd();};
+function sd(){document.getElementById('showData').classList.toggle('on',!showFields);document.getElementById('showFields').classList.toggle('on',showFields);render();}
+const previewBtn=document.getElementById('previewBtn');
+previewBtn.onclick=()=>{preview=!preview;previewBtn.classList.toggle('on',preview);previewBtn.textContent=preview?"✎ Edit":"▷ Preview";sel=null;render();buildInspector();};
+
+document.getElementById('exportBtn').onclick=()=>{
+ if(EMBEDDED){ return openSave(); }
+ modalTitle.textContent="Layout saved · config_json";
+ modalBody.innerHTML=`<div class="tip" style="margin-bottom:10px">This is what gets stored on the <b>Print Studio Layout</b> doctype and rendered to PDF by Frappe.</div><textarea id="expArea" readonly style="min-height:300px">${esc(JSON.stringify(schema,null,2))}</textarea>`;
+ modalFoot.innerHTML=`<button class="tbtn" id="cp">Copy</button><button class="tbtn primary" id="dl">Download .json</button>`;
+ document.getElementById('cp').onclick=()=>{const a=document.getElementById('expArea');a.select();document.execCommand('copy');};
+ document.getElementById('dl').onclick=()=>{const blob=new Blob([document.getElementById('expArea').value],{type:"application/json"});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=schema.doctype.replace(/\s+/g,'_')+"_layout.json";a.click();};
+ showModal();
+};
+document.getElementById('importBtn').onclick=()=>{
+ if(EMBEDDED){ return openOpen(); }
+ modalTitle.textContent="Load a saved layout";
+ modalBody.innerHTML=`<textarea id="impArea" placeholder="Paste a layout JSON here…" style="min-height:300px"></textarea>`;
+ modalFoot.innerHTML=`<button class="tbtn primary" id="ld">Load</button>`;
+ document.getElementById('ld').onclick=()=>{try{const o=JSON.parse(document.getElementById('impArea').value);uid=7000;o.bands.forEach(b=>{b.id=nid("b");b.elements.forEach(e=>e.id=nid("e"));});schema=o;sel=null;doctypeSel.value=o.doctype;modal.style.display="none";render();buildInspector();}catch(e){alert("Invalid JSON: "+e.message);}};
+ showModal();
+};
+
+function esc(s){return (s+"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
+
+/* ===== ERPNext save / open / server preview ===== */
+function applyLoaded(o){ uid=7000; o.bands.forEach(b=>{b.id=nid("b");b.elements.forEach(e=>e.id=nid("e"));}); schema=o; sel=(o.bands[0]?{bandId:o.bands[0].id}:null); }
+function openSave(){
+ modalTitle.textContent="Save print format";
+ const def = schema.__title || (schema.doctype+" Format");
+ modalBody.innerHTML=`<div class="tip" style="margin-bottom:10px">Saving creates a print format named <b>PS · <span id="ttlEcho">${esc(def)}</span></b> on <b>${esc(schema.doctype)}</b>. It will appear in the normal print menu.</div>
+  <div class="row"><label style="width:90px">Format name</label><input id="saveTitle" value="${esc(def)}"></div>`;
+ modalFoot.innerHTML=`<button class="tbtn" id="saveCancel">Cancel</button><button class="tbtn primary" id="saveGo">Save</button>`;
+ const ti=document.getElementById('saveTitle');
+ ti.addEventListener('input',()=>{document.getElementById('ttlEcho').textContent=ti.value;});
+ document.getElementById('saveCancel').onclick=()=>modal.style.display="none";
+ document.getElementById('saveGo').onclick=async()=>{
+   const title=ti.value.trim()||def; schema.__title=title;
+   const res=await bridge('saveLayout',{title,ref_doctype:schema.doctype,config_json:JSON.stringify(schema),name:currentLayoutName});
+   if(res&&res.name){ currentLayoutName=res.name; bridge('notify',{msg:"Saved · print format \u201c"+ (res.print_format||("PS \u00b7 "+title)) +"\u201d ready"}); bridge('print',{doctype:schema.doctype,title}); }
+   modal.style.display="none";
+ };
+ showModal();
+}
+async function openOpen(){
+ modalTitle.textContent="Open a saved layout";
+ modalBody.innerHTML=`<div class="tip">Loading…</div>`; modalFoot.innerHTML=""; showModal();
+ const rows=await bridge('listLayouts',{ref_doctype:schema.doctype})||[];
+ if(!rows.length){ modalBody.innerHTML=`<div class="empty">No saved layouts for ${esc(schema.doctype)} yet.</div>`; return; }
+ modalBody.innerHTML=`<div class="picklist" style="max-height:50vh">`+rows.map(r=>`<button class="pk" data-name="${esc(r.name)}"><b>${esc(r.title)}</b> <small>${esc(r.ref_doctype)} · ${esc((r.modified||'').slice(0,10))}</small></button>`).join("")+`</div>`;
+ modalBody.querySelectorAll('.pk').forEach(b=>b.addEventListener('click',async()=>{
+   const d=await bridge('loadLayout',{name:b.dataset.name});
+   if(d&&d.config_json){ const o=JSON.parse(d.config_json); await ensureDoctype(o.doctype); applyLoaded(o); currentLayoutName=d.name; schema.__title=d.title; doctypeSel.value=o.doctype; modal.style.display="none"; render(); buildInspector(); buildLeft(); }
+ }));
+}
+const _imp=document.getElementById('importFileBtn'), _pf=document.getElementById('psFile');
+if(_imp&&_pf){ _imp.onclick=()=>{ if(!EMBEDDED){ alert("Import runs inside ERPNext (it reads the file on the server)."); return; } _pf.click(); };
+ _pf.onchange=async()=>{ const file=_pf.files[0]; if(!file) return; _pf.value="";
+  const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(file);});
+  let mode="text";
+  if(/\.pdf$/i.test(file.name)){ mode=await chooseImportMode(); if(mode===null) return; }
+  modalTitle.textContent="Importing \u201c"+file.name+"\u201d"; modalBody.innerHTML='<div class="tip">Reading on the server\u2026</div>'; modalFoot.innerHTML=""; showModal();
+  const res=await bridge('importFile',{filename:file.name,content_b64:b64,doctype:schema.doctype,mode:mode});
+  if(res&&res.bands){ applyLoaded(res); currentLayoutName=null; render(); buildInspector(); buildLeft(); modal.style.display="none"; bridge('notify',{msg:"Imported \u2014 now convert headings to variables where needed, then Save"}); }
+  else { modalBody.innerHTML='<div class="empty">Could not read that file. Check that the matching library is installed on the bench (see README).</div>'; modalFoot.innerHTML='<button class="tbtn" id="impClose">Close</button>'; document.getElementById('impClose').onclick=()=>modal.style.display="none"; }
+ };
+}
+function chooseImportMode(){ return new Promise(res=>{
+  modalTitle.textContent="How should I import this PDF?";
+  modalBody.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <button class="block" id="imExact" style="text-align:left"><div class="bt"><span class="d"></span>Exact copy (image)</div><small>Pixel-perfect like the original. Best for fixed pre-printed templates \u2014 you just drop the value fields on top. Cannot edit the original text.</small></button>
+    <button class="block" id="imText" style="text-align:left"><div class="bt"><span class="d"></span>Editable text</div><small>Pulls out the text, headings &amp; lines so you can move/edit them. Dense layouts may overlap and need cleanup.</small></button>
+  </div>`;
+  modalFoot.innerHTML=`<button class="tbtn" id="imCancel">Cancel</button>`;
+  document.getElementById('imExact').onclick=()=>{modal.style.display="none";res("image");};
+  document.getElementById('imText').onclick=()=>{modal.style.display="none";res("text");};
+  document.getElementById('imCancel').onclick=()=>{modal.style.display="none";res(null);};
+  showModal();
+});}
+let _pvScale=0.7;
+const _sp=document.getElementById('serverPrevBtn'); if(_sp) _sp.onclick=async()=>{
+ if(!EMBEDDED){ alert("Server preview is available inside ERPNext."); return; }
+ modalTitle.textContent="PDF preview (real data, server-rendered)";
+ modalBody.innerHTML=`<div class="tip">Rendering on the server…</div>`; modalFoot.innerHTML=""; showModal();
+ const html=await bridge('serverPreview',{doctype:schema.doctype,layout_json:JSON.stringify(schema)});
+ _pvScale=0.7;
+ modalBody.innerHTML=`<div id="pvScroll" style="overflow:auto;max-height:62vh;background:#e9ecef;border-radius:8px;padding:14px">
+   <div id="pvInner" style="background:#fff;border:1px solid var(--line2);box-shadow:0 4px 16px rgba(0,0,0,.12);padding:6mm;width:210mm;transform-origin:top left">${html||'<i>No preview.</i>'}</div></div>`;
+ modalFoot.innerHTML=`<div class="zoom" style="margin-right:auto"><button id="pvOut">\u2212</button><span id="pvLbl"></span><button id="pvIn">+</button></div>
+   <button class="tbtn" id="pvFit">Fit width</button><button class="tbtn" id="pvClose">Close</button>`;
+ const apply=()=>{ const inner=document.getElementById('pvInner'); if(inner){inner.style.transform="scale("+_pvScale+")";} const lb=document.getElementById('pvLbl'); if(lb)lb.textContent=Math.round(_pvScale*100)+"%"; };
+ document.getElementById('pvIn').onclick=()=>{_pvScale=Math.min(2,_pvScale+0.1);apply();};
+ document.getElementById('pvOut').onclick=()=>{_pvScale=Math.max(0.3,_pvScale-0.1);apply();};
+ document.getElementById('pvFit').onclick=()=>{ const sc=document.getElementById('pvScroll'); _pvScale=Math.max(0.3,Math.min(2,((sc.clientWidth-28)/ (210*3.7795)))); apply(); };
+ document.getElementById('pvClose').onclick=()=>modal.style.display="none";
+ apply();
+};
+
+/* boot */
+(async function(){ buildLeft(); render(); buildInspector();
+  if(EMBEDDED){
+    const want=new URLSearchParams(location.search).get('layout');
+    if(want){
+      const d=await bridge('loadLayout',{name:want});
+      if(d&&d.config_json){ const o=JSON.parse(d.config_json); await ensureDoctype(o.doctype); applyLoaded(o); currentLayoutName=d.name; schema.__title=d.title; }
+      else { await ensureDoctype(schema.doctype); schema=genericSchema(schema.doctype); sel=null; }
+    } else { await ensureDoctype(schema.doctype); schema=genericSchema(schema.doctype); sel=null; }
+    await populateDoctypes(); doctypeSel.value=schema.doctype; render(); buildInspector(); buildLeft();
+  }
+  else { /* standalone: seeded sample data already present */ if(typeof populateDoctypes==='function'){} }
+})();
+</script>
